@@ -21,7 +21,7 @@ services:
     restart: always
 
   nginx:
-    image: nginx:1.15-alpine
+    image: nginx:alpine
     restart: unless-stopped
     ports:
       - "80:80"
