@@ -2,19 +2,15 @@ services:
   app:
     build: .
     container_name: seouldream-be
-    # ports:
-    #   - "8080:8080" # Nginx를 통해 접근하므로 직접 포트 노출 중단
     depends_on:
       db:
         condition: service_healthy
     environment:
-      # Spring Boot 설정 오버라이딩
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
       - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      # JWT Secret
       - APP_JWT_SECRET=${APP_JWT_SECRET}
     networks:
       - seouldream-net
@@ -55,7 +51,6 @@ services:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./dummy_data.sql:/docker-entrypoint-initdb.d/dummy_data.sql # 최초 실행 시 더미 데이터 로드 (선택 사항)
     networks:
       - seouldream-net
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
