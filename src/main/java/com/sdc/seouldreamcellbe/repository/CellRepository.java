@@ -18,7 +18,8 @@ public interface CellRepository extends JpaRepository<Cell, Long>, JpaSpecificat
     List<Cell> findAllActiveWithLeaderAndMembers();
 
     @Query("SELECT c FROM Cell c JOIN FETCH c.leader WHERE c.active = true AND c.leader IS NOT NULL AND " +
-           "(SELECT COUNT(m) FROM Member m WHERE m.cell = c AND m.active = true) > " +
+           "(SELECT COUNT(m) FROM Member m WHERE m.cell = c AND m.active = true " +
+           " AND (m.cellAssignmentDate IS NULL OR m.cellAssignmentDate <= :date)) > " + // Modified
            "(SELECT COUNT(a) FROM Attendance a WHERE a.member.cell = c AND a.date = :date)")
     List<Cell> findIncompleteCellsForDate(@Param("date") LocalDate date);
 }

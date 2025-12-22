@@ -69,4 +69,22 @@ public interface MemberRepository extends JpaRepository<Member, Long>, JpaSpecif
     List<Integer> findDistinctJoinYears();
 
     Optional<Member> findByEmail(String email);
+
+    long countByName(String name);
+
+    long countByCreatedAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+
+    @Query("SELECT COUNT(m) FROM Member m WHERE m.cell IS NULL AND m.active = true AND m.role != com.sdc.seouldreamcellbe.domain.common.Role.EXECUTIVE")
+    long countByCellIsNullAndActiveTrue();
+
+    long countByCellIsNotNullAndActive(boolean active);
+
+    long countByBirthDateBetweenAndActive(java.time.LocalDate start, java.time.LocalDate end, boolean active);
+
+    @Query("SELECT FUNCTION('YEAR', m.birthDate) as year, m.gender, COUNT(m) " +
+           "FROM Member m " +
+           "WHERE m.active = true AND m.birthDate IS NOT NULL " +
+           "GROUP BY FUNCTION('YEAR', m.birthDate), m.gender " +
+           "ORDER BY year ASC")
+    List<Object[]> findBirthYearDistribution();
 }

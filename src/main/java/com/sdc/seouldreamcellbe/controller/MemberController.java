@@ -78,8 +78,9 @@ public class MemberController {
         @RequestParam(required = false) Boolean unassigned,
         @RequestParam(required = false) Long cellId,
         @RequestParam(required = false) Integer month,
+        @RequestParam(required = false) List<Role> excludeRoles,
         @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
-        Page<MemberDto> members = memberService.getAllMembers(name, joinYear, gender, role, unassigned, cellId, month, pageable);
+        Page<MemberDto> members = memberService.getAllMembers(name, joinYear, gender, role, unassigned, cellId, month, excludeRoles, pageable);
         return ResponseEntity.ok(PageResponseDto.from(members));
     }
 

@@ -109,7 +109,7 @@ public class MemberService {
         return MemberDto.from(member);
     }
 
-    public Page<MemberDto> getAllMembers(String name, Integer joinYear, Gender gender, Role role, Boolean unassigned, Long cellId, Integer month, Pageable pageable) {
+    public Page<MemberDto> getAllMembers(String name, Integer joinYear, Gender gender, Role role, Boolean unassigned, Long cellId, Integer month, List<Role> excludeRoles, Pageable pageable) {
 
         Pageable finalPageable = pageable;
         // If filtering by month and no specific sort is provided, default sort by birthDate
@@ -123,7 +123,8 @@ public class MemberService {
             .and(MemberSpecification.hasRole(role))
             .and(MemberSpecification.isUnassigned(unassigned))
             .and(MemberSpecification.hasCellId(cellId))
-            .and(MemberSpecification.hasBirthMonth(month));
+            .and(MemberSpecification.hasBirthMonth(month))
+            .and(MemberSpecification.excludeRoles(excludeRoles));
 
         Page<Member> memberPage = memberRepository.findAll(spec, finalPageable);
         return memberPage.map(MemberDto::from);

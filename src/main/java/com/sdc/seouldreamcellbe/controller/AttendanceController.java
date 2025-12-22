@@ -4,8 +4,10 @@ import com.sdc.seouldreamcellbe.domain.common.AttendanceStatus;
 import com.sdc.seouldreamcellbe.domain.common.GroupBy;
 import com.sdc.seouldreamcellbe.dto.attendance.*;
 import com.sdc.seouldreamcellbe.dto.common.PageResponseDto;
+import com.sdc.seouldreamcellbe.dto.report.CellReportDto;
 import com.sdc.seouldreamcellbe.service.AttendanceService;
 import com.sdc.seouldreamcellbe.service.AttendanceSummaryService;
+import com.sdc.seouldreamcellbe.service.ReportService;
 import com.sdc.seouldreamcellbe.util.DateUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +31,16 @@ import java.util.List;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+    private final ReportService reportService;
     private final AttendanceSummaryService attendanceSummaryService;
+
+    @GetMapping("/report")
+    @PreAuthorize("hasRole('EXECUTIVE') or @customSecurityEvaluator.isCellLeaderOfCell(authentication, #cellId)")
+    public ResponseEntity<CellReportDto> getAttendanceReport(
+        @RequestParam Long cellId,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(reportService.getReportByCellAndDate(cellId, date));
+    }
 
     /**
      * Creates or updates a list of attendance records.

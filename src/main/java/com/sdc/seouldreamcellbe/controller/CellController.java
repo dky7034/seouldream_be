@@ -50,10 +50,7 @@ public class CellController {
         @PathVariable Long cellId,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         CellReportDto report = reportService.getReportByCellAndDate(cellId, date);
-        if (report == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(report);
+        return ResponseEntity.ok(report); // Returns null (200 OK) if not found
     }
 
     @PreAuthorize("hasRole('EXECUTIVE')")

@@ -85,16 +85,24 @@ public class PrayerService {
         User createdBy = userRepository.findById(request.createdById())
             .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다. ID: " + request.createdById()));
 
-        Prayer newPrayer = Prayer.builder()
-            .member(member)
-            .meetingDate(request.meetingDate()) // ADDED
-            .content(request.content())
-            .weekOfMonth(request.weekOfMonth())
-            .visibility(request.visibility())
-            .createdBy(createdBy)
-            .build();
+        // Check if a prayer already exists for this member and date
+        Prayer prayer = prayerRepository.findByMember_IdAndMeetingDate(request.memberId(), request.meetingDate())
+                .orElse(Prayer.builder()
+                        .member(member)
+                        .meetingDate(request.meetingDate())
+                        .visibility(request.visibility() != null ? request.visibility() : PrayerVisibility.CELL)
+                        .createdBy(createdBy)
+                        .build());
 
-        Prayer savedPrayer = prayerRepository.save(newPrayer);
+        // Update content and other fields
+        prayer.setContent(request.content());
+        prayer.setWeekOfMonth(request.weekOfMonth());
+        // Only update visibility if explicitly provided in request, otherwise keep existing or default
+        if (request.visibility() != null) {
+            prayer.setVisibility(request.visibility());
+        }
+
+        Prayer savedPrayer = prayerRepository.save(prayer);
         return PrayerDto.from(savedPrayer);
     }
 
