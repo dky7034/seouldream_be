@@ -1,5 +1,6 @@
 package com.sdc.seouldreamcellbe.controller;
 
+import com.sdc.seouldreamcellbe.dto.common.PageResponseDto;
 import com.sdc.seouldreamcellbe.dto.prayer.CreatePrayerRequest;
 import com.sdc.seouldreamcellbe.dto.prayer.PrayerDto;
 import com.sdc.seouldreamcellbe.dto.prayer.UpdatePrayerRequest;
@@ -44,7 +45,7 @@ public class PrayerController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Page<PrayerDto>> getPrayers(
+    public ResponseEntity<PageResponseDto<PrayerDto>> getPrayers(
         @AuthenticationPrincipal UserDetails userDetails,
         @RequestParam(required = false) Long memberId,
         @RequestParam(required = false) Long cellId,
@@ -60,7 +61,7 @@ public class PrayerController {
 
         DateUtil.DateRange effectiveRange = DateUtil.calculateDateRangeFromParams(startDate, endDate, year, month, quarter, half);
         Page<PrayerDto> prayers = prayerService.getPrayers(userDetails, memberId, cellId, createdById, isDeleted, effectiveRange.startDate(), effectiveRange.endDate(), pageable);
-        return ResponseEntity.ok(prayers);
+        return ResponseEntity.ok(PageResponseDto.from(prayers));
     }
 
     @GetMapping("/available-years")

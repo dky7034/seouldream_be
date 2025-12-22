@@ -1,6 +1,7 @@
 package com.sdc.seouldreamcellbe.controller;
 
 import com.sdc.seouldreamcellbe.domain.common.NoticeTarget;
+import com.sdc.seouldreamcellbe.dto.common.PageResponseDto;
 import com.sdc.seouldreamcellbe.dto.notice.CreateNoticeRequest;
 import com.sdc.seouldreamcellbe.dto.notice.NoticeDto;
 import com.sdc.seouldreamcellbe.dto.notice.UpdateNoticeRequest;
@@ -42,7 +43,7 @@ public class NoticeController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<NoticeDto>> getAllNotices(
+    public ResponseEntity<PageResponseDto<NoticeDto>> getAllNotices(
         @RequestParam(required = false) String title,
         @RequestParam(required = false) NoticeTarget target,
         @RequestParam(required = false) Boolean pinned,
@@ -56,7 +57,7 @@ public class NoticeController {
 
         DateUtil.DateRange effectiveRange = DateUtil.calculateDateRangeFromParams(startDate, endDate, year, month, quarter, half);
         Page<NoticeDto> notices = noticeService.getAllNotices(title, target, pinned, effectiveRange.startDate(), effectiveRange.endDate(), pageable);
-        return ResponseEntity.ok(notices);
+        return ResponseEntity.ok(PageResponseDto.from(notices));
     }
 
     @GetMapping("/available-years")

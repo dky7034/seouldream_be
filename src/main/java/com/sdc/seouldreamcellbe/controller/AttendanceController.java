@@ -3,6 +3,7 @@ package com.sdc.seouldreamcellbe.controller;
 import com.sdc.seouldreamcellbe.domain.common.AttendanceStatus;
 import com.sdc.seouldreamcellbe.domain.common.GroupBy;
 import com.sdc.seouldreamcellbe.dto.attendance.*;
+import com.sdc.seouldreamcellbe.dto.common.PageResponseDto;
 import com.sdc.seouldreamcellbe.service.AttendanceService;
 import com.sdc.seouldreamcellbe.service.AttendanceSummaryService;
 import com.sdc.seouldreamcellbe.util.DateUtil;
@@ -104,7 +105,7 @@ public class AttendanceController {
      * Gets a paginated and filtered list of attendance records.
      */
     @GetMapping
-    public ResponseEntity<Page<AttendanceDto>> getAttendances(
+    public ResponseEntity<PageResponseDto<AttendanceDto>> getAttendances(
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
         @RequestParam(required = false) Long memberId,
@@ -118,7 +119,7 @@ public class AttendanceController {
 
         DateUtil.DateRange effectiveRange = DateUtil.calculateDateRangeFromParams(startDate, endDate, year, month, quarter, half);
         Page<AttendanceDto> result = attendanceService.getAttendances(effectiveRange.startDate(), effectiveRange.endDate(), memberId, cellId, status, pageable);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(PageResponseDto.from(result));
     }
     
     @PreAuthorize("@customSecurityEvaluator.canManageAttendance(authentication, #id)")
