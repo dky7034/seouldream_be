@@ -1,0 +1,77 @@
+# Created by https://www.toptal.com/developers/gitignore/api/java,gradle,intellij,visualstudiocode,emacs,macos,windows
+# Edit at https://www.toptal.com/developers/gitignore?templates=java,gradle,intellij,visualstudiocode,emacs,macos,windows
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Gradle ###
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### Java ###
+# Log files
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+#*.jar
+#*.war
+#*.ear
+*.zip
+*.tar.gz
+*.rar
+
+### Operating System Files ###
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+### Custom ###
+# Local environment variables
+.env
+
+# Local application properties
+application-local.yml
+
+# Help file from Spring Initializr
+HELP.md

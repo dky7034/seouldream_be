@@ -1,0 +1,24 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: seouldreamcell-be
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/seouldream_cell?serverTimezone=Asia/Seoul
+    username: root
+    password: rootpass
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    #    show-sql: true   # JPA 쿼리를 콘솔에 출력 (개발 시 유용)
+    properties:
+      hibernate:
+        format_sql: true
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET} # This value will be injected from an environment variable
+    expiration-ms: 86400000 # 24 hours
+    refresh-expiration-ms: 604800000 # 7 days
