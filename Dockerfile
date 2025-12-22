@@ -1,5 +1,5 @@
 # 빌드 과정(Gradle)을 싹 뺐습니다. 오직 실행만 합니다.
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jdk
 
 WORKDIR /app
 
