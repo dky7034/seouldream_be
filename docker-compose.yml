@@ -1,0 +1,74 @@
+services:
+  app:
+    build: .
+    container_name: seouldream-be
+    # ports:
+    #   - "8080:8080" # Nginx를 통해 접근하므로 직접 포트 노출 중단
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Spring Boot 설정 오버라이딩
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      # JWT Secret
+      - APP_JWT_SECRET=${APP_JWT_SECRET}
+    networks:
+      - seouldream-net
+    restart: always
+
+  nginx:
+    image: nginx:1.15-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+      - ./frontend_build:/var/www/frontend
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    depends_on:
+      - app
+    networks:
+      - seouldream-net
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+  db:
+    image: mysql:8.0
+    container_name: seouldream-db
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./dummy_data.sql:/docker-entrypoint-initdb.d/dummy_data.sql # 최초 실행 시 더미 데이터 로드 (선택 사항)
+    networks:
+      - seouldream-net
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  seouldream-net:
+    driver: bridge
+
+volumes:
+  db_data:
