@@ -39,13 +39,15 @@ jobs:
 
       - name: Deploy & Restart Docker
         run: |
-          # 1. jar 파일을 서버 폴더로 먼저 이동 (경로 문제 해결!)
+          # [수정 포인트] 1. 헷갈리는 plain jar 파일 먼저 삭제 (이게 핵심!)
+          rm -f build/libs/*-plain.jar
+          
+          # 2. 이제 하나 남은 진짜 실행 파일만 서버 폴더로 이동
           mv build/libs/*.jar /home/ubuntu/seouldream_be/app.jar
           
-          # 2. 그 다음 서버 폴더로 이동
+          # 3. 서버 폴더로 이동해서 재시작
           cd /home/ubuntu/seouldream_be
           
-          # 3. 도커 재실행
           sudo docker-compose up -d --build app
           sudo docker image prune -f
           echo "Backend deployed successfully!"
