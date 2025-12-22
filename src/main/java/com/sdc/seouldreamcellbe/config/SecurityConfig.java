@@ -50,7 +50,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:3000"));
+
+        // ▼ 수정된 부분: 운영 서버 도메인 추가!
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",      // 개발용
+                "http://localhost:5174",
+                "http://localhost:3000",
+                "https://nextdream.store",    // [필수] 운영 서버 도메인
+                "https://www.nextdream.store" // [권장] www 붙은 것도 허용
+        ));
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
