@@ -36,10 +36,16 @@ jobs:
         with:
           name: spring-app
           path: build/libs
+
       - name: Deploy & Restart Docker
         run: |
+          # 1. jar 파일을 서버 폴더로 먼저 이동 (경로 문제 해결!)
+          mv build/libs/*.jar /home/ubuntu/seouldream_be/app.jar
+          
+          # 2. 그 다음 서버 폴더로 이동
           cd /home/ubuntu/seouldream_be
-          mv ../build/libs/*.jar app.jar
+          
+          # 3. 도커 재실행
           sudo docker-compose up -d --build app
           sudo docker image prune -f
           echo "Backend deployed successfully!"
