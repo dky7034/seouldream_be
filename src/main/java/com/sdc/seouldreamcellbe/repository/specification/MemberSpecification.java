@@ -58,4 +58,13 @@ public class MemberSpecification {
             );
         };
     }
+
+    public static Specification<Member> excludeRoles(java.util.List<Role> roles) {
+        return (root, query, criteriaBuilder) -> {
+            if (roles == null || roles.isEmpty()) {
+                return criteriaBuilder.conjunction();
+            }
+            return criteriaBuilder.not(root.get("role").in(roles));
+        };
+    }
 }

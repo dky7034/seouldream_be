@@ -75,3 +75,7 @@ application-local.yml
 
 # Help file from Spring Initializr
 HELP.md
+
+### Docker & Deployment ###
+frontend_build/
+data/

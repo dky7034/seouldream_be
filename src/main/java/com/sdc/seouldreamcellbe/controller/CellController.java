@@ -9,6 +9,7 @@ import com.sdc.seouldreamcellbe.dto.cell.UpdateCellRequest;
 import com.sdc.seouldreamcellbe.dto.cell.ProcessAttendanceWithPrayersRequest; // Added import
 import com.sdc.seouldreamcellbe.dto.attendance.CellAttendanceSummaryDto;
 import com.sdc.seouldreamcellbe.dto.attendance.SimpleAttendanceRateDto;
+import com.sdc.seouldreamcellbe.dto.common.PageResponseDto;
 import com.sdc.seouldreamcellbe.service.CellService;
 import com.sdc.seouldreamcellbe.service.AttendanceSummaryService;
 import com.sdc.seouldreamcellbe.service.CellUseCaseService; // Added import
@@ -49,10 +50,7 @@ public class CellController {
         @PathVariable Long cellId,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         CellReportDto report = reportService.getReportByCellAndDate(cellId, date);
-        if (report == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(report);
+        return ResponseEntity.ok(report); // Returns null (200 OK) if not found
     }
 
     @PreAuthorize("hasRole('EXECUTIVE')")
@@ -156,7 +154,7 @@ public class CellController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<CellDto>> getAllCells(
+    public ResponseEntity<PageResponseDto<CellDto>> getAllCells(
         @RequestParam(required = false) String name,
         @RequestParam(required = false) Boolean active,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -169,7 +167,7 @@ public class CellController {
         
         DateUtil.DateRange effectiveRange = DateUtil.calculateDateRangeFromParams(startDate, endDate, year, month, quarter, half);
         Page<CellDto> cells = cellService.getAllCells(name, active, effectiveRange.startDate(), effectiveRange.endDate(), pageable);
-        return ResponseEntity.ok(cells);
+        return ResponseEntity.ok(PageResponseDto.from(cells));
     }
 
     @PreAuthorize("hasRole('EXECUTIVE')")

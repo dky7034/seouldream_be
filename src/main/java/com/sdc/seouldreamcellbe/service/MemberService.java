@@ -49,8 +49,14 @@ public class MemberService {
         if (userRepository.findByUsername(request.username()).isPresent()) {
             throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
         }
+        // Handle empty email as null
+        String email = request.email();
+        if (email != null && email.isBlank()) {
+            email = null;
+        }
+
         // Check for duplicate email
-        if (request.email() != null && memberRepository.findByEmail(request.email()).isPresent()) {
+        if (email != null && memberRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
 
@@ -72,7 +78,7 @@ public class MemberService {
             .gender(request.gender())
             .birthDate(request.birthDate())
             .phone(request.phone())
-            .email(request.email())
+            .email(email)
             .cell(cell)
             .cellAssignmentDate(cellAssignmentDate)
             .role(request.role())
@@ -103,7 +109,7 @@ public class MemberService {
         return MemberDto.from(member);
     }
 
-    public Page<MemberDto> getAllMembers(String name, Integer joinYear, Gender gender, Role role, Boolean unassigned, Long cellId, Integer month, Pageable pageable) {
+    public Page<MemberDto> getAllMembers(String name, Integer joinYear, Gender gender, Role role, Boolean unassigned, Long cellId, Integer month, List<Role> excludeRoles, Pageable pageable) {
 
         Pageable finalPageable = pageable;
         // If filtering by month and no specific sort is provided, default sort by birthDate
@@ -117,7 +123,8 @@ public class MemberService {
             .and(MemberSpecification.hasRole(role))
             .and(MemberSpecification.isUnassigned(unassigned))
             .and(MemberSpecification.hasCellId(cellId))
-            .and(MemberSpecification.hasBirthMonth(month));
+            .and(MemberSpecification.hasBirthMonth(month))
+            .and(MemberSpecification.excludeRoles(excludeRoles));
 
         Page<Member> memberPage = memberRepository.findAll(spec, finalPageable);
         return memberPage.map(MemberDto::from);
@@ -132,7 +139,10 @@ public class MemberService {
         if (request.gender() != null) member.setGender(request.gender());
         if (request.birthDate() != null) member.setBirthDate(request.birthDate());
         if (request.phone() != null) member.setPhone(request.phone());
-        if (request.email() != null) member.setEmail(request.email());
+        if (request.email() != null) {
+            String email = request.email();
+            member.setEmail((email.isBlank()) ? null : email);
+        }
         if (request.role() != null) member.setRole(request.role());
         if (request.joinYear() != null) member.setJoinYear(request.joinYear());
         if (request.active() != null) member.setActive(request.active());
@@ -249,7 +259,10 @@ public class MemberService {
         }
 
         if (request.phone() != null) member.setPhone(request.phone());
-        if (request.email() != null) member.setEmail(request.email());
+        if (request.email() != null) {
+            String email = request.email();
+            member.setEmail((email.isBlank()) ? null : email);
+        }
         if (request.address() != null) member.setAddress(request.address());
         if (request.note() != null) member.setNote(request.note());
 

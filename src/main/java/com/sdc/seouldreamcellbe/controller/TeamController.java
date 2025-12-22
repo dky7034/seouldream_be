@@ -1,5 +1,6 @@
 package com.sdc.seouldreamcellbe.controller;
 
+import com.sdc.seouldreamcellbe.dto.common.PageResponseDto;
 import com.sdc.seouldreamcellbe.dto.member.MemberDto;
 import com.sdc.seouldreamcellbe.dto.team.AddMembersToTeamRequest;
 import com.sdc.seouldreamcellbe.dto.team.CreateTeamRequest;
@@ -41,13 +42,13 @@ public class TeamController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<TeamDto>> getAllTeams(
+    public ResponseEntity<PageResponseDto<TeamDto>> getAllTeams(
         @RequestParam(required = false) String name,
         @RequestParam(required = false) String code,
         @RequestParam(required = false) Boolean active,
         @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
         Page<TeamDto> teams = teamService.getAllTeams(name, code, active, pageable);
-        return ResponseEntity.ok(teams);
+        return ResponseEntity.ok(PageResponseDto.from(teams));
     }
 
     @PreAuthorize("hasRole('EXECUTIVE')")

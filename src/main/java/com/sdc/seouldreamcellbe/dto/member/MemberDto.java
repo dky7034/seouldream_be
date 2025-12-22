@@ -25,6 +25,7 @@ public record MemberDto(
     String address,
     String note,
     String username, // NEW
+    LocalDate registeredDate, // Added for frontend convenience (mapped from createdAt)
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
@@ -57,6 +58,7 @@ public record MemberDto(
             .address(entity.getAddress())
             .note(entity.getNote())
             .username(username) // NEW
+            .registeredDate(entity.getCreatedAt() != null ? entity.getCreatedAt().toLocalDate() : null)
             .createdAt(entity.getCreatedAt())
             .updatedAt(entity.getUpdatedAt())
             .build();

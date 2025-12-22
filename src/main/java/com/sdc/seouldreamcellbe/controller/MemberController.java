@@ -5,6 +5,7 @@ import com.sdc.seouldreamcellbe.domain.common.GroupBy;
 import com.sdc.seouldreamcellbe.domain.common.Role;
 import com.sdc.seouldreamcellbe.dto.attendance.MemberAttendanceSummaryDto;
 import com.sdc.seouldreamcellbe.dto.attendance.SimpleAttendanceRateDto;
+import com.sdc.seouldreamcellbe.dto.common.PageResponseDto;
 import com.sdc.seouldreamcellbe.dto.member.CreateMemberRequest;
 import com.sdc.seouldreamcellbe.dto.member.MemberDto;
 import com.sdc.seouldreamcellbe.dto.member.UpdateMemberRequest;
@@ -69,7 +70,7 @@ public class MemberController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<MemberDto>> getAllMembers(
+    public ResponseEntity<PageResponseDto<MemberDto>> getAllMembers(
         @RequestParam(required = false) String name,
         @RequestParam(required = false) Integer joinYear,
         @RequestParam(required = false) Gender gender,
@@ -77,9 +78,10 @@ public class MemberController {
         @RequestParam(required = false) Boolean unassigned,
         @RequestParam(required = false) Long cellId,
         @RequestParam(required = false) Integer month,
+        @RequestParam(required = false) List<Role> excludeRoles,
         @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
-        Page<MemberDto> members = memberService.getAllMembers(name, joinYear, gender, role, unassigned, cellId, month, pageable);
-        return ResponseEntity.ok(members);
+        Page<MemberDto> members = memberService.getAllMembers(name, joinYear, gender, role, unassigned, cellId, month, excludeRoles, pageable);
+        return ResponseEntity.ok(PageResponseDto.from(members));
     }
 
     @GetMapping("/available-join-years")

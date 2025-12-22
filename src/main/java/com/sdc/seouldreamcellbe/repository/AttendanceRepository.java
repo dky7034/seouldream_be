@@ -83,4 +83,34 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
 
     @Query("SELECT a FROM Attendance a JOIN FETCH a.member WHERE a.member.id IN :memberIds ORDER BY a.date DESC")
     List<Attendance> findByMember_IdInOrderByDateDesc(@Param("memberIds") List<Long> memberIds);
+
+    // --- Statistics Queries ---
+
+    @Query("SELECT AVG(dailyCount) FROM (SELECT COUNT(DISTINCT a.member.id) as dailyCount " +
+           "FROM Attendance a " +
+           "WHERE a.date BETWEEN :startDate AND :endDate " +
+           "AND a.status = com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT " +
+           "AND (:cellId IS NULL OR a.member.cell.id = :cellId) " +
+           "GROUP BY a.date) as subquery")
+    Double calculateWeeklyAverageAttendance(
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate,
+        @Param("cellId") Long cellId
+    );
+
+    @Query("SELECT COUNT(m) FROM Member m " +
+           "WHERE m.active = true " +
+           "AND (:cellId IS NULL OR m.cell.id = :cellId) " +
+           "AND m.createdAt <= :endDate " + // Created before the end of the period
+           "AND NOT EXISTS (" +
+           "  SELECT 1 FROM Attendance a " +
+           "  WHERE a.member = m " +
+           "  AND a.date BETWEEN :startDate AND :endDate " +
+           "  AND a.status = com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT" +
+           ")")
+    long countMembersWithZeroAttendance(
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate,
+        @Param("cellId") Long cellId
+    );
 }

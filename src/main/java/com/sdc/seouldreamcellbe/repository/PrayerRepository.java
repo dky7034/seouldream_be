@@ -22,6 +22,8 @@ public interface PrayerRepository extends JpaRepository<Prayer, Long>, JpaSpecif
 
     List<Prayer> findByMember_IdInAndMeetingDateBetween(List<Long> memberIds, LocalDate start, LocalDate end);
 
+    Optional<Prayer> findByMember_IdAndMeetingDate(Long memberId, LocalDate meetingDate);
+
     // For EXECUTIVE dashboard
     @Query("SELECT p FROM Prayer p WHERE p.createdAt >= :yearStartDate ORDER BY p.createdAt DESC")
     List<Prayer> findTop5RecentForExecutive(@Param("yearStartDate") LocalDateTime yearStartDate, Pageable pageable);

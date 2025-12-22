@@ -35,6 +35,8 @@ import java.util.stream.Collectors;
 public class StatisticsService {
 
     private final AttendanceRepository attendanceRepository;
+    private final com.sdc.seouldreamcellbe.repository.MemberRepository memberRepository;
+    private final com.sdc.seouldreamcellbe.repository.CellRepository cellRepository;
     private final CurrentUserFinder currentUserFinder;
     private final ActiveSemesterService activeSemesterService;
     private final SemesterRepository semesterRepository; // For SEMESTER grouping
@@ -56,6 +58,112 @@ public class StatisticsService {
             }
         }
         return Collections.emptyList();
+    }
+
+    public List<com.sdc.seouldreamcellbe.dto.statistics.NewcomerTrendDto> getNewcomerTrend(LocalDate startDate, LocalDate endDate, String groupBy) {
+        List<Member> members = memberRepository.findAll((root, query, cb) -> 
+            cb.between(root.get("createdAt"), startDate.atStartOfDay(), endDate.plusDays(1).atStartOfDay())); // Handle end date inclusively
+
+        Map<String, Long> counts;
+        
+        if ("SEMESTER".equalsIgnoreCase(groupBy)) {
+             List<Semester> semesters = semesterRepository.findAll(org.springframework.data.domain.Sort.by("startDate"));
+             counts = members.stream()
+                .collect(Collectors.groupingBy(m -> {
+                    LocalDate created = m.getCreatedAt().toLocalDate();
+                    return semesters.stream()
+                        .filter(s -> !created.isBefore(s.getStartDate()) && !created.isAfter(s.getEndDate()))
+                        .findFirst()
+                        .map(Semester::getName)
+                        .orElse("Unknown");
+                }, Collectors.counting()));
+        } else {
+            // Default to MONTH
+             counts = members.stream()
+                .collect(Collectors.groupingBy(m -> m.getCreatedAt().toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM")), Collectors.counting()));
+        }
+
+        List<com.sdc.seouldreamcellbe.dto.statistics.NewcomerTrendDto> result = new ArrayList<>();
+        List<String> sortedKeys = new ArrayList<>(counts.keySet());
+        Collections.sort(sortedKeys);
+
+        Long previousCount = null;
+
+        for (String key : sortedKeys) {
+            Long count = counts.get(key);
+            Double growthRate = null;
+            if (previousCount != null && previousCount > 0) {
+                growthRate = ((double) (count - previousCount) / previousCount) * 100.0;
+                growthRate = Math.round(growthRate * 10.0) / 10.0;
+            } else if (previousCount != null && previousCount == 0) {
+                growthRate = (count > 0) ? 100.0 : 0.0; 
+            }
+
+            result.add(com.sdc.seouldreamcellbe.dto.statistics.NewcomerTrendDto.builder()
+                .label(key)
+                .count(count)
+                .growthRate(growthRate)
+                .build());
+            
+            previousCount = count;
+        }
+
+        return result;
+    }
+
+    public com.sdc.seouldreamcellbe.dto.statistics.SemesterSummaryDto getSemesterSummary(Long semesterId) {
+        // Note: Currently returns snapshot of CURRENT state regardless of semesterId, 
+        // as historical snapshots are not fully implemented. 
+        // If semesterId is provided, we could fetch that semester's info for the name.
+        
+        String semesterName = "Current";
+        if (semesterId != null) {
+            semesterName = semesterRepository.findById(semesterId).map(Semester::getName).orElse("Unknown");
+        } else {
+             semesterName = activeSemesterService.getActiveSemester().getName();
+        }
+
+        // Current Stats
+        Integer totalCellCount = cellRepository.findByActive(true).size();
+        Integer totalMemberCount = (int) memberRepository.countByActive(true);
+        Integer cellMemberCount = (int) memberRepository.countByCellIsNotNullAndActive(true);
+        Integer unassignedCount = (int) memberRepository.countByCellIsNullAndActiveTrue(); // Note: This excludes executives based on repo query
+
+        // Age Group Summary (Calculated similarly to DashboardService)
+        LocalDate now = LocalDate.now();
+        
+        // under20s: age < 20 (born after 20 years ago)
+        LocalDate startUnder20 = now.minusYears(20).plusDays(1);
+        Integer under20s = (int) memberRepository.countByBirthDateBetweenAndActive(startUnder20, now, true);
+
+        // 20s: 20 <= age <= 29
+        LocalDate start20s = now.minusYears(30).plusDays(1);
+        LocalDate end20s = now.minusYears(20);
+        Integer twenties = (int) memberRepository.countByBirthDateBetweenAndActive(start20s, end20s, true);
+
+        // 30s: 30 <= age <= 39
+        LocalDate start30s = now.minusYears(40).plusDays(1);
+        LocalDate end30s = now.minusYears(30);
+        Integer thirties = (int) memberRepository.countByBirthDateBetweenAndActive(start30s, end30s, true);
+
+        // over40s: age >= 40
+        LocalDate end40s = now.minusYears(40);
+        Integer over40s = (int) memberRepository.countByBirthDateBetweenAndActive(now.minusYears(150), end40s, true);
+
+
+        return com.sdc.seouldreamcellbe.dto.statistics.SemesterSummaryDto.builder()
+            .semesterName(semesterName)
+            .totalCellCount(totalCellCount)
+            .totalMemberCount(totalMemberCount)
+            .cellMemberCount(cellMemberCount)
+            .unassignedCount(unassignedCount)
+            .ageGroupSummary(com.sdc.seouldreamcellbe.dto.statistics.AgeGroupSummaryDto.builder()
+                .under20s(under20s)
+                .twenties(twenties)
+                .thirties(thirties)
+                .over40s(over40s)
+                .build())
+            .build();
     }
 
     public List<AggregatedTrendDto> getAttendanceTrend(
@@ -244,7 +352,15 @@ public class StatisticsService {
         long totalRecords = attendanceRepository.count(finalSpec);
 
         if (totalRecords == 0) {
-            return new OverallAttendanceStatDto(0, 0.0);
+             // Even if records are 0, we might have zero attendance count
+            long zeroCount = attendanceRepository.countMembersWithZeroAttendance(startDate, endDate, effectiveCellId);
+            return OverallAttendanceStatDto.builder()
+                .totalRecords(0)
+                .attendanceRate(0.0)
+                .weeklyAverage(0.0)
+                .zeroAttendanceCount(zeroCount)
+                .attendanceTrend(0.0)
+                .build();
         }
 
         long presentCount;
@@ -259,10 +375,43 @@ public class StatisticsService {
         }
 
         double attendanceRate = (double) presentCount / totalRecords * 100.0;
-
-        // Round to two decimal places
         attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
 
-        return new OverallAttendanceStatDto(totalRecords, attendanceRate);
+        // --- New Metrics Calculation ---
+        Double weeklyAverage = attendanceRepository.calculateWeeklyAverageAttendance(startDate, endDate, effectiveCellId);
+        if (weeklyAverage == null) weeklyAverage = 0.0;
+        weeklyAverage = Math.round(weeklyAverage * 10.0) / 10.0; // Round to 1 decimal
+
+        long zeroAttendanceCount = attendanceRepository.countMembersWithZeroAttendance(startDate, endDate, effectiveCellId);
+
+        // Trend Calculation (Optional: Comparing with previous period of same length)
+        Double trend = null;
+        try {
+            long days = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate);
+            LocalDate prevStartDate = startDate.minusDays(days + 1);
+            LocalDate prevEndDate = startDate.minusDays(1);
+            
+            Double prevAverage = attendanceRepository.calculateWeeklyAverageAttendance(prevStartDate, prevEndDate, effectiveCellId);
+            if (prevAverage != null && prevAverage > 0) {
+                trend = ((weeklyAverage - prevAverage) / prevAverage) * 100.0;
+                trend = Math.round(trend * 10.0) / 10.0;
+            } else if (weeklyAverage > 0) {
+                 trend = 100.0; // From 0 to something is 100% increase (conceptually)
+            } else {
+                trend = 0.0;
+            }
+        } catch (Exception e) {
+            // Ignore trend calculation errors
+            trend = 0.0;
+        }
+
+
+        return OverallAttendanceStatDto.builder()
+            .totalRecords(totalRecords)
+            .attendanceRate(attendanceRate)
+            .weeklyAverage(weeklyAverage)
+            .zeroAttendanceCount(zeroAttendanceCount)
+            .attendanceTrend(trend)
+            .build();
     }
 }

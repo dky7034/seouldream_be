@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate; // Added import
+
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
@@ -23,8 +25,11 @@ public class DashboardController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DashboardDto> getDashboard(
         @AuthenticationPrincipal UserDetails userDetails,
-        @RequestParam(required = false, defaultValue = "3m") String period) {
-        DashboardDto dashboardDto = dashboardService.getDashboard(userDetails.getUsername(), period);
+        @RequestParam(required = false, defaultValue = "3m") String period,
+        @RequestParam(required = false) LocalDate startDate,
+        @RequestParam(required = false) LocalDate endDate
+    ) {
+        DashboardDto dashboardDto = dashboardService.getDashboard(userDetails.getUsername(), period, startDate, endDate);
         return ResponseEntity.ok(dashboardDto);
     }
 }

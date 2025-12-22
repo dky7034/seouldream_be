@@ -89,4 +89,27 @@ public class StatisticsController {
         List<Integer> years = statisticsService.getAvailableYears(cellId);
         return ResponseEntity.ok(years);
     }
+
+    @Operation(summary = "기간별 새가족 등록 추이", description = "기간 내 새가족 등록 수와 전 분기 대비 증감률을 조회합니다.")
+    @GetMapping("/newcomers")
+    @PreAuthorize("hasAnyRole('ROLE_EXECUTIVE')")
+    public ResponseEntity<List<com.sdc.seouldreamcellbe.dto.statistics.NewcomerTrendDto>> getNewcomerTrend(
+        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate endDate,
+        @RequestParam(defaultValue = "MONTH") String groupBy
+    ) {
+        if (startDate == null) startDate = LocalDate.now().minusMonths(6).withDayOfMonth(1);
+        if (endDate == null) endDate = LocalDate.now();
+        
+        return ResponseEntity.ok(statisticsService.getNewcomerTrend(startDate, endDate, groupBy));
+    }
+
+    @Operation(summary = "학기별 핵심 요약 및 인구 통계", description = "특정 학기(또는 현재) 기준 전체 인원 현황과 연령대별 분포를 조회합니다.")
+    @GetMapping("/semester-summary")
+    @PreAuthorize("hasAnyRole('ROLE_EXECUTIVE')")
+    public ResponseEntity<com.sdc.seouldreamcellbe.dto.statistics.SemesterSummaryDto> getSemesterSummary(
+        @RequestParam(required = false) Long semesterId
+    ) {
+        return ResponseEntity.ok(statisticsService.getSemesterSummary(semesterId));
+    }
 }

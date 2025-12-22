@@ -1,6 +1,7 @@
 package com.sdc.seouldreamcellbe.controller;
 
 import com.sdc.seouldreamcellbe.dto.AdminDto;
+import com.sdc.seouldreamcellbe.dto.common.PageResponseDto;
 import com.sdc.seouldreamcellbe.dto.prayer.PrayerCellSummaryDto;
 import com.sdc.seouldreamcellbe.dto.prayer.PrayerMemberSummaryDto;
 import com.sdc.seouldreamcellbe.service.MemberService;
@@ -40,7 +41,7 @@ public class AdminController {
     @GetMapping("/prayers/summary/members")
     @PreAuthorize("hasAnyRole('EXECUTIVE', 'CELL_LEADER')")
     @Operation(summary = "멤버별 기도제목 요약 조회", description = "멤버별로 그룹화된 기도제목 요약 정보를 조회합니다. 셀리더는 자기 셀만 조회 가능합니다.")
-    public ResponseEntity<Page<PrayerMemberSummaryDto>> getMemberPrayerSummaries(
+    public ResponseEntity<PageResponseDto<PrayerMemberSummaryDto>> getMemberPrayerSummaries(
         @RequestParam(required = false) Long memberId,
         @RequestParam(required = false) Long cellId,
         @RequestParam(required = false) Long createdById,
@@ -57,13 +58,13 @@ public class AdminController {
         Page<PrayerMemberSummaryDto> summary = prayerService.getMemberPrayerSummary(
             startDate, endDate, year, month, quarter, half, semesterId,
             cellId, memberId, createdById, isDeleted, pageable);
-        return ResponseEntity.ok(summary);
+        return ResponseEntity.ok(PageResponseDto.from(summary));
     }
 
     @GetMapping("/prayers/summary/cells")
     @PreAuthorize("hasAnyRole('EXECUTIVE', 'CELL_LEADER')")
     @Operation(summary = "셀별 기도제목 요약 조회", description = "셀별로 그룹화된 기도제목 요약 정보를 조회합니다. 셀리더는 자기 셀만 조회 가능합니다.")
-    public ResponseEntity<Page<PrayerCellSummaryDto>> getCellPrayerSummaries(
+    public ResponseEntity<PageResponseDto<PrayerCellSummaryDto>> getCellPrayerSummaries(
         @RequestParam(required = false) Long memberId,
         @RequestParam(required = false) Long cellId,
         @RequestParam(required = false) Long createdById,
@@ -80,6 +81,6 @@ public class AdminController {
         Page<PrayerCellSummaryDto> summary = prayerService.getCellPrayerSummary(
             startDate, endDate, year, month, quarter, half, semesterId,
             cellId, memberId, createdById, isDeleted, pageable);
-        return ResponseEntity.ok(summary);
+        return ResponseEntity.ok(PageResponseDto.from(summary));
     }
 }
