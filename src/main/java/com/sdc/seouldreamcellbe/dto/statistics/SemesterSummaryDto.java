@@ -9,5 +9,7 @@ public record SemesterSummaryDto(
     Integer totalMemberCount,
     Integer cellMemberCount,
     Integer unassignedCount,
+    Integer executiveCount,
+    Integer cellLeaderCount,
     AgeGroupSummaryDto ageGroupSummary
 ) {}

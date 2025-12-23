@@ -81,6 +81,8 @@ public record DashboardDto(
         Integer totalMemberCount,
         Integer cellMemberCount,
         Integer previousSemesterCount,
+        Integer executiveCount,
+        Integer cellLeaderCount,
         Integer count10sAndUnder,
         Integer count20s,
         Integer count30s,

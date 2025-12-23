@@ -65,6 +65,8 @@ public interface MemberRepository extends JpaRepository<Member, Long>, JpaSpecif
 
     List<Member> findAllByRoleAndActive(com.sdc.seouldreamcellbe.domain.common.Role role, boolean active);
 
+    long countByRoleAndActive(com.sdc.seouldreamcellbe.domain.common.Role role, boolean active);
+
     @Query("SELECT DISTINCT m.joinYear FROM Member m WHERE m.joinYear IS NOT NULL ORDER BY m.joinYear DESC")
     List<Integer> findDistinctJoinYears();
 

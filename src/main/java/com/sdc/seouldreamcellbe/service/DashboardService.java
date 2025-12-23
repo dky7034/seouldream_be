@@ -188,6 +188,14 @@ public class DashboardService {
         Integer cellMemberCount = (int) memberRepository.countByCellIsNotNullAndActive(true);
         Integer previousSemesterCount = 0;
 
+        Integer executiveCount = (int) memberRepository.countByRoleAndActive(Role.EXECUTIVE, true);
+        Integer cellLeaderCount = (int) cellRepository.findByActive(true).stream()
+            .map(com.sdc.seouldreamcellbe.domain.Cell::getLeader)
+            .filter(java.util.Objects::nonNull)
+            .map(Member::getId)
+            .distinct()
+            .count();
+
         // 2. Detailed Age Counts
         // 10s and under: age < 20 (born after 20 years ago today)
         LocalDate start10s = now.minusYears(20).plusDays(1);
@@ -210,7 +218,7 @@ public class DashboardService {
         // 3. Distribution (with gap filling)
         List<Object[]> distributionRaw = memberRepository.findBirthYearDistribution();
         if (distributionRaw.isEmpty()) {
-            return new DashboardDto.DemographicsDto(totalCellCount, totalMemberCount, cellMemberCount, previousSemesterCount, count10sAndUnder, count20s, count30s, count40sAndOver, Collections.emptyList());
+            return new DashboardDto.DemographicsDto(totalCellCount, totalMemberCount, cellMemberCount, previousSemesterCount, executiveCount, cellLeaderCount, count10sAndUnder, count20s, count30s, count40sAndOver, Collections.emptyList());
         }
 
         java.util.Map<Integer, DashboardDto.DemographicsDistribution> distMap = new java.util.HashMap<>();
@@ -248,6 +256,8 @@ public class DashboardService {
             totalMemberCount,
             cellMemberCount,
             previousSemesterCount,
+            executiveCount,
+            cellLeaderCount,
             count10sAndUnder,
             count20s,
             count30s,

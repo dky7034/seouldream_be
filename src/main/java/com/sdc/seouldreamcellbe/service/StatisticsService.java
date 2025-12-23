@@ -128,6 +128,16 @@ public class StatisticsService {
         Integer totalMemberCount = (int) memberRepository.countByActive(true);
         Integer cellMemberCount = (int) memberRepository.countByCellIsNotNullAndActive(true);
         Integer unassignedCount = (int) memberRepository.countByCellIsNullAndActiveTrue(); // Note: This excludes executives based on repo query
+        
+        Integer executiveCount = (int) memberRepository.countByRoleAndActive(Role.EXECUTIVE, true);
+        
+        // Calculate cellLeaderCount: unique leaders of active cells
+        Integer cellLeaderCount = (int) cellRepository.findByActive(true).stream()
+            .map(com.sdc.seouldreamcellbe.domain.Cell::getLeader)
+            .filter(java.util.Objects::nonNull)
+            .map(Member::getId)
+            .distinct()
+            .count();
 
         // Age Group Summary (Calculated similarly to DashboardService)
         LocalDate now = LocalDate.now();
@@ -157,6 +167,8 @@ public class StatisticsService {
             .totalMemberCount(totalMemberCount)
             .cellMemberCount(cellMemberCount)
             .unassignedCount(unassignedCount)
+            .executiveCount(executiveCount)
+            .cellLeaderCount(cellLeaderCount)
             .ageGroupSummary(com.sdc.seouldreamcellbe.dto.statistics.AgeGroupSummaryDto.builder()
                 .under20s(under20s)
                 .twenties(twenties)
