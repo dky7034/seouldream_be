@@ -15,6 +15,7 @@ import com.sdc.seouldreamcellbe.repository.specification.PrayerSpecification;
 import com.sdc.seouldreamcellbe.security.CurrentUserFinder;
 import com.sdc.seouldreamcellbe.util.DateUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class PrayerService {
 
     private final PrayerRepository prayerRepository;
@@ -79,6 +81,7 @@ public class PrayerService {
 
     @Transactional
     public PrayerDto createPrayer(CreatePrayerRequest request) {
+        log.info("Creating prayer: memberId={}, meetingDate={}, content={}", request.memberId(), request.meetingDate(), request.content());
         Member member = memberRepository.findById(request.memberId())
             .orElseThrow(() -> new NotFoundException("멤버를 찾을 수 없습니다. ID: " + request.memberId()));
 
@@ -187,10 +190,10 @@ public class PrayerService {
         Long effectiveCellId = resolveEffectiveCellId(cellId);
         Boolean finalIsDeleted = isDeleted != null ? isDeleted : false;
 
-        LocalDateTime startDateTime = dateRange.startDate() != null ? dateRange.startDate().atStartOfDay() : null;
-        LocalDateTime endDateTime = dateRange.endDate() != null ? dateRange.endDate().plusDays(1).atStartOfDay() : null;
+        LocalDate startLocalDate = dateRange.startDate();
+        LocalDate endLocalDate = dateRange.endDate() != null ? dateRange.endDate().plusDays(1) : null;
 
-        return prayerRepository.findMemberPrayerSummary(startDateTime, endDateTime, effectiveCellId, memberId, createdById, finalIsDeleted, pageable);
+        return prayerRepository.findMemberPrayerSummary(startLocalDate, endLocalDate, effectiveCellId, memberId, createdById, finalIsDeleted, pageable);
     }
 
     public Page<PrayerCellSummaryDto> getCellPrayerSummary(
@@ -201,10 +204,10 @@ public class PrayerService {
         Long effectiveCellId = resolveEffectiveCellId(cellId);
         Boolean finalIsDeleted = isDeleted != null ? isDeleted : false;
         
-        LocalDateTime startDateTime = dateRange.startDate() != null ? dateRange.startDate().atStartOfDay() : null;
-        LocalDateTime endDateTime = dateRange.endDate() != null ? dateRange.endDate().plusDays(1).atStartOfDay() : null;
+        LocalDate startLocalDate = dateRange.startDate();
+        LocalDate endLocalDate = dateRange.endDate() != null ? dateRange.endDate().plusDays(1) : null;
 
-        return prayerRepository.findCellPrayerSummary(startDateTime, endDateTime, effectiveCellId, memberId, createdById, finalIsDeleted, pageable);
+        return prayerRepository.findCellPrayerSummary(startLocalDate, endLocalDate, effectiveCellId, memberId, createdById, finalIsDeleted, pageable);
     }
 
     private Long resolveEffectiveCellId(Long requestedCellId) {
@@ -238,6 +241,7 @@ public class PrayerService {
         Prayer prayer = prayerRepository.findById(prayerId)
             .orElseThrow(() -> new NotFoundException("기도제목을 찾을 수 없습니다. ID: " + prayerId));
 
+        if (request.meetingDate() != null) prayer.setMeetingDate(request.meetingDate());
         if (request.content() != null) prayer.setContent(request.content());
         if (request.weekOfMonth() != null) prayer.setWeekOfMonth(request.weekOfMonth());
         if (request.visibility() != null) prayer.setVisibility(request.visibility());

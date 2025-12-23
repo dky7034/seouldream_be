@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +25,7 @@ public class PrayerRepositoryImpl implements PrayerRepositoryCustom {
     private final EntityManager em;
 
     @Override
-    public Page<PrayerMemberSummaryDto> findMemberPrayerSummary(LocalDateTime startDate, LocalDateTime endDate, Long cellId, Long memberId, Long createdById, Boolean isDeleted, Pageable pageable) {
+    public Page<PrayerMemberSummaryDto> findMemberPrayerSummary(LocalDate startDate, LocalDate endDate, Long cellId, Long memberId, Long createdById, Boolean isDeleted, Pageable pageable) {
         // Base Query
         String baseJpql = "FROM Prayer p JOIN p.member m LEFT JOIN m.cell c ";
         
@@ -34,11 +35,11 @@ public class PrayerRepositoryImpl implements PrayerRepositoryCustom {
         params.put("isDeleted", isDeleted);
 
         if (startDate != null) {
-            whereClause.append("AND p.createdAt >= :startDate ");
+            whereClause.append("AND p.meetingDate >= :startDate ");
             params.put("startDate", startDate);
         }
         if (endDate != null) {
-            whereClause.append("AND p.createdAt < :endDate ");
+            whereClause.append("AND p.meetingDate < :endDate ");
             params.put("endDate", endDate);
         }
         if (cellId != null) {
@@ -56,7 +57,7 @@ public class PrayerRepositoryImpl implements PrayerRepositoryCustom {
 
         // Main data query
         String dataJpql = "SELECT new com.sdc.seouldreamcellbe.dto.prayer.PrayerMemberSummaryDto(" +
-            "m.id, m.name, c.id, c.name, COUNT(p.id), MAX(p.createdAt)) " +
+            "m.id, m.name, c.id, c.name, COUNT(p.id), MAX(p.meetingDate)) " +
             baseJpql + whereClause +
             "GROUP BY m.id, m.name, c.id, c.name " +
             buildOrderByClause(pageable.getSort(), "member");
@@ -77,7 +78,7 @@ public class PrayerRepositoryImpl implements PrayerRepositoryCustom {
     }
 
     @Override
-    public Page<PrayerCellSummaryDto> findCellPrayerSummary(LocalDateTime startDate, LocalDateTime endDate, Long cellId, Long memberId, Long createdById, Boolean isDeleted, Pageable pageable) {
+    public Page<PrayerCellSummaryDto> findCellPrayerSummary(LocalDate startDate, LocalDate endDate, Long cellId, Long memberId, Long createdById, Boolean isDeleted, Pageable pageable) {
         // Base Query
         String baseJpql = "FROM Prayer p JOIN p.member m JOIN m.cell c ";
 
@@ -87,11 +88,11 @@ public class PrayerRepositoryImpl implements PrayerRepositoryCustom {
         params.put("isDeleted", isDeleted);
 
         if (startDate != null) {
-            whereClause.append("AND p.createdAt >= :startDate ");
+            whereClause.append("AND p.meetingDate >= :startDate ");
             params.put("startDate", startDate);
         }
         if (endDate != null) {
-            whereClause.append("AND p.createdAt < :endDate ");
+            whereClause.append("AND p.meetingDate < :endDate ");
             params.put("endDate", endDate);
         }
         if (cellId != null) {
@@ -109,7 +110,7 @@ public class PrayerRepositoryImpl implements PrayerRepositoryCustom {
 
         // Main data query
         String dataJpql = "SELECT new com.sdc.seouldreamcellbe.dto.prayer.PrayerCellSummaryDto(" +
-            "c.id, c.name, COUNT(p.id), MAX(p.createdAt)) " +
+            "c.id, c.name, COUNT(p.id), MAX(p.meetingDate)) " +
             baseJpql + whereClause +
             "GROUP BY c.id, c.name " +
             buildOrderByClause(pageable.getSort(), "cell");
@@ -148,7 +149,7 @@ public class PrayerRepositoryImpl implements PrayerRepositoryCustom {
     private String mapSortProperty(String property, String type) {
         return switch (property) {
             case "totalCount" -> "COUNT(p.id)";
-            case "latestCreatedAt" -> "MAX(p.createdAt)";
+            case "latestCreatedAt" -> "MAX(p.meetingDate)";
             case "memberName" -> "m.name";
             case "cellName" -> "c.name";
             default -> {

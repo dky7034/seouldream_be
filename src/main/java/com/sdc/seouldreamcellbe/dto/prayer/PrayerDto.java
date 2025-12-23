@@ -6,12 +6,14 @@ import com.sdc.seouldreamcellbe.domain.User;
 import com.sdc.seouldreamcellbe.domain.common.PrayerVisibility;
 import lombok.Builder;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Builder
 public record PrayerDto(
     Long id,
     MemberInfo member,
+    LocalDate meetingDate,
     String content,
     Integer weekOfMonth,
     PrayerVisibility visibility,
@@ -41,6 +43,7 @@ public record PrayerDto(
         return PrayerDto.builder()
             .id(entity.getId())
             .member(MemberInfo.from(entity.getMember()))
+            .meetingDate(entity.getMeetingDate())
             .content(entity.getContent())
             .weekOfMonth(entity.getWeekOfMonth())
             .visibility(entity.getVisibility())

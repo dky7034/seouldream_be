@@ -16,6 +16,7 @@ import com.sdc.seouldreamcellbe.repository.CellRepository;
 import com.sdc.seouldreamcellbe.repository.MemberRepository;
 import com.sdc.seouldreamcellbe.security.CurrentUserFinder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CellUseCaseService {
 
     private final AttendanceService attendanceService;
@@ -41,6 +43,7 @@ public class CellUseCaseService {
     public void processAttendanceAndPrayers(Long cellId, ProcessAttendanceWithPrayersRequest request) {
         User currentUser = currentUserFinder.getCurrentUser();
         LocalDate meetingDate = request.meetingDate();
+        log.info("Processing attendance/prayers for cellId: {}, meetingDate: {}", cellId, meetingDate);
 
         // 1. 권한 검증 (셀장 또는 임원)
         if (currentUser.getRole() != Role.EXECUTIVE && currentUser.getRole() != Role.CELL_LEADER) {

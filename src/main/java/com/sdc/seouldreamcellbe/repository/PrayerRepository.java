@@ -25,40 +25,40 @@ public interface PrayerRepository extends JpaRepository<Prayer, Long>, JpaSpecif
     Optional<Prayer> findByMember_IdAndMeetingDate(Long memberId, LocalDate meetingDate);
 
     // For EXECUTIVE dashboard
-    @Query("SELECT p FROM Prayer p WHERE p.createdAt >= :yearStartDate ORDER BY p.createdAt DESC")
-    List<Prayer> findTop5RecentForExecutive(@Param("yearStartDate") LocalDateTime yearStartDate, Pageable pageable);
+    @Query("SELECT p FROM Prayer p WHERE p.meetingDate >= :yearStartDate ORDER BY p.meetingDate DESC")
+    List<Prayer> findTop5RecentForExecutive(@Param("yearStartDate") LocalDate yearStartDate, Pageable pageable);
 
 
     // For CELL_LEADER dashboard
     @Query("SELECT p FROM Prayer p " +
-           "WHERE p.createdAt >= :yearStartDate AND ( " +
+           "WHERE p.meetingDate >= :yearStartDate AND ( " +
            "   p.visibility = com.sdc.seouldreamcellbe.domain.common.PrayerVisibility.ALL " +
            "   OR (p.member.cell.id = :cellId AND p.visibility = com.sdc.seouldreamcellbe.domain.common.PrayerVisibility.CELL) " +
-           ") ORDER BY p.createdAt DESC")
-    List<Prayer> findTop5RecentForCellLeader(@Param("cellId") Long cellId, @Param("yearStartDate") LocalDateTime yearStartDate, Pageable pageable);
+           ") ORDER BY p.meetingDate DESC")
+    List<Prayer> findTop5RecentForCellLeader(@Param("cellId") Long cellId, @Param("yearStartDate") LocalDate yearStartDate, Pageable pageable);
 
-    @Query("SELECT DISTINCT YEAR(p.createdAt) FROM Prayer p ORDER BY YEAR(p.createdAt) DESC")
+    @Query("SELECT DISTINCT YEAR(p.meetingDate) FROM Prayer p ORDER BY YEAR(p.meetingDate) DESC")
     List<Integer> findDistinctYearsForExecutive();
 
-    @Query("SELECT DISTINCT YEAR(p.createdAt) FROM Prayer p " +
+    @Query("SELECT DISTINCT YEAR(p.meetingDate) FROM Prayer p " +
            "WHERE p.visibility = :vis_all " +
            "   OR (p.member.cell.id = :cellId AND p.visibility = :vis_cell) " +
-           "ORDER BY YEAR(p.createdAt) DESC")
+           "ORDER BY YEAR(p.meetingDate) DESC")
     List<Integer> findDistinctYearsForCellLeader(@Param("cellId") Long cellId, @Param("vis_all") PrayerVisibility vis_all, @Param("vis_cell") PrayerVisibility vis_cell);
 
-    @Query("SELECT DISTINCT YEAR(p.createdAt) FROM Prayer p " +
+    @Query("SELECT DISTINCT YEAR(p.meetingDate) FROM Prayer p " +
            "WHERE p.visibility = :vis_all " +
            "   OR (p.member.cell.id = :cellId AND p.visibility = :vis_cell) " +
            "   OR (p.createdBy.id = :userId AND p.visibility = :vis_me) " +
-           "ORDER BY YEAR(p.createdAt) DESC")
+           "ORDER BY YEAR(p.meetingDate) DESC")
     List<Integer> findDistinctYearsForMember(@Param("cellId") Long cellId, @Param("userId") Long userId, @Param("vis_all") PrayerVisibility vis_all, @Param("vis_cell") PrayerVisibility vis_cell, @Param("vis_me") PrayerVisibility vis_me);
 
-    Long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+    Long countByMeetingDateBetween(LocalDate start, LocalDate end);
 
     @Query("SELECT count(p) FROM Prayer p " +
-        "WHERE p.createdAt >= :start AND p.createdAt <= :end AND ( " +
+        "WHERE p.meetingDate >= :start AND p.meetingDate <= :end AND ( " +
         "   p.visibility = com.sdc.seouldreamcellbe.domain.common.PrayerVisibility.ALL " +
         "   OR (p.member.cell.id = :cellId AND p.visibility = com.sdc.seouldreamcellbe.domain.common.PrayerVisibility.CELL) " +
         ")")
-    Long countForCellLeaderByCreatedAtBetween(@Param("cellId") Long cellId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    Long countForCellLeaderByMeetingDateBetween(@Param("cellId") Long cellId, @Param("start") LocalDate start, @Param("end") LocalDate end);
 }

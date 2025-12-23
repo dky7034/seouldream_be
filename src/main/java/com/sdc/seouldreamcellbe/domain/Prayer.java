@@ -30,7 +30,7 @@ public class Prayer extends BaseTimeEntity {
     @JsonBackReference
     private Member member;
 
-    @Column // MODIFIED: nullable = true (default)
+    @Column(nullable = false)
     private LocalDate meetingDate;
 
     @Lob

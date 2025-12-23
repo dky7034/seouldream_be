@@ -101,7 +101,7 @@ public class DashboardService {
         List<Member> monthlyBirthdayMembers = memberRepository.findByBirthdayInMonth(LocalDate.now().getMonthValue());
 
         // --- Recent Prayers (within current year) ---
-        List<Prayer> recentPrayers = prayerRepository.findTop5RecentForExecutive(yearStartDateTime, PageRequest.of(0, 6));
+        List<Prayer> recentPrayers = prayerRepository.findTop5RecentForExecutive(yearStartDateTime.toLocalDate(), PageRequest.of(0, 6));
 
         // --- Recent Notices (All) ---
         List<Notice> recentNotices = noticeRepository.findAllByTargetOrderByPinnedDescCreatedAtDesc(NoticeTarget.ALL, PageRequest.of(0, 6));
@@ -110,7 +110,7 @@ public class DashboardService {
         DateUtil.DateRange weekRange = DateUtil.getWeekRange(LocalDate.now());
         LocalDateTime weekStart = weekRange.startDate().atStartOfDay();
         LocalDateTime weekEnd = weekRange.endDate().atTime(LocalTime.MAX);
-        Integer weeklyPrayerCount = prayerRepository.countByCreatedAtBetween(weekStart, weekEnd).intValue();
+        Integer weeklyPrayerCount = prayerRepository.countByMeetingDateBetween(weekStart.toLocalDate(), weekEnd.toLocalDate()).intValue();
         Integer weeklyNoticeCount = noticeRepository.countByCreatedAtBetween(weekStart, weekEnd).intValue();
         
         // --- NEW: Additional Metrics ---
@@ -278,7 +278,7 @@ public class DashboardService {
         List<Member> monthlyBirthdayMembers = memberRepository.findByCell_IdAndBirthdayInMonth(cellId, LocalDate.now().getMonthValue());
 
         // --- Recent Prayers (Cell's context, within current year) ---
-        List<Prayer> recentPrayers = prayerRepository.findTop5RecentForCellLeader(cellId, yearStartDateTime, PageRequest.of(0, 6));
+        List<Prayer> recentPrayers = prayerRepository.findTop5RecentForCellLeader(cellId, yearStartDateTime.toLocalDate(), PageRequest.of(0, 6));
 
         // --- Recent Notices (All) ---
         List<Notice> recentNotices = noticeRepository.findAllByTargetOrderByPinnedDescCreatedAtDesc(NoticeTarget.ALL, PageRequest.of(0, 6));
@@ -287,7 +287,7 @@ public class DashboardService {
         DateUtil.DateRange weekRange = DateUtil.getWeekRange(LocalDate.now());
         LocalDateTime weekStart = weekRange.startDate().atStartOfDay();
         LocalDateTime weekEnd = weekRange.endDate().atTime(LocalTime.MAX);
-        Integer weeklyPrayerCount = prayerRepository.countForCellLeaderByCreatedAtBetween(cellId, weekStart, weekEnd).intValue();
+        Integer weeklyPrayerCount = prayerRepository.countForCellLeaderByMeetingDateBetween(cellId, weekStart.toLocalDate(), weekEnd.toLocalDate()).intValue();
         Integer weeklyNoticeCount = noticeRepository.countByCreatedAtBetween(weekStart, weekEnd).intValue();
         
         // --- NEW: Additional Metrics ---

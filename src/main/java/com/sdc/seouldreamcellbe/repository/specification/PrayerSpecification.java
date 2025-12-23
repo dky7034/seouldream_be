@@ -15,10 +15,10 @@ public class PrayerSpecification {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (startDate != null) {
-                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startDate.atStartOfDay()));
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("meetingDate"), startDate));
             }
             if (endDate != null) {
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endDate.atTime(23, 59, 59)));
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("meetingDate"), endDate));
             }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
