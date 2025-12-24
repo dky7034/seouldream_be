@@ -16,7 +16,9 @@ import com.sdc.seouldreamcellbe.repository.specification.CellSpecification;
 import com.sdc.seouldreamcellbe.security.CurrentUserFinder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -204,8 +206,6 @@ public class CellService {
     public Page<CellDto> getAllCells(String name, Boolean active, LocalDate startDate, LocalDate endDate, Pageable pageable) {
         List<Specification<Cell>> specifications = new ArrayList<>();
 
-        // specifications.add(CellSpecification.hasDateBetween(startDate, endDate)); // Removed to prevent filtering by creation date
-
         if (name != null && !name.isBlank()) {
             specifications.add(CellSpecification.hasName(name));
         }
@@ -213,27 +213,87 @@ public class CellService {
             specifications.add(CellSpecification.isActive(active));
         }
 
-        Page<Cell> cellPage = cellRepository.findAll(Specification.allOf(specifications), pageable);
+        // Check if sorting by attendanceRate is requested
+        boolean sortByAttendanceRate = pageable.getSort().stream()
+            .anyMatch(order -> "attendanceRate".equals(order.getProperty()));
 
-        if (startDate != null && endDate != null && !cellPage.isEmpty()) {
-            List<Long> cellIds = cellPage.getContent().stream().map(Cell::getId).collect(Collectors.toList());
-            List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
-            
-            Map<Long, Double> rates = stats.stream().collect(Collectors.toMap(
-                AttendanceRepository.CellAttendanceStats::getCellId,
-                s -> {
-                    double rate = (s.getTotalCount() > 0) ? (double) s.getPresentCount() / s.getTotalCount() * 100.0 : 0.0;
-                    return Math.round(rate * 100.0) / 100.0;
+        if (sortByAttendanceRate) {
+            // 1. Fetch ALL matching cells (unpaged)
+            List<Cell> allCells = cellRepository.findAll(Specification.allOf(specifications));
+
+            // 2. Calculate rates for ALL cells
+            List<CellDto> allCellDtos;
+            if (startDate != null && endDate != null && !allCells.isEmpty()) {
+                List<Long> cellIds = allCells.stream().map(Cell::getId).collect(Collectors.toList());
+                List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
+
+                Map<Long, Double> rates = stats.stream().collect(Collectors.toMap(
+                    AttendanceRepository.CellAttendanceStats::getCellId,
+                    s -> {
+                        double rate = (s.getTotalCount() > 0) ? (double) s.getPresentCount() / s.getTotalCount() * 100.0 : 0.0;
+                        return Math.round(rate * 100.0) / 100.0;
+                    }
+                ));
+
+                allCellDtos = allCells.stream()
+                    .map(cell -> {
+                        Double rate = rates.getOrDefault(cell.getId(), 0.0);
+                        return CellDto.from(cell, rate);
+                    })
+                    .collect(Collectors.toList());
+            } else {
+                // If no date range, rate is 0.0 or handle accordingly. Assuming 0.0 for now if no range.
+                allCellDtos = allCells.stream()
+                    .map(CellDto::from)
+                    .collect(Collectors.toList());
+            }
+
+            // 3. Sort in memory
+            Sort.Order rateOrder = pageable.getSort().getOrderFor("attendanceRate");
+            if (rateOrder != null) {
+                Comparator<CellDto> comparator = Comparator.comparingDouble(CellDto::attendanceRate);
+                if (rateOrder.isDescending()) {
+                    comparator = comparator.reversed();
                 }
-            ));
+                allCellDtos.sort(comparator);
+            }
 
-            return cellPage.map(cell -> {
-                Double rate = rates.getOrDefault(cell.getId(), 0.0);
-                return CellDto.from(cell, rate);
-            });
+            // 4. Manual Pagination
+            int start = (int) pageable.getOffset();
+            int end = Math.min((start + pageable.getPageSize()), allCellDtos.size());
+            
+            // Handle case where start is beyond size
+            if (start > allCellDtos.size()) {
+                 return new PageImpl<>(Collections.emptyList(), pageable, allCellDtos.size());
+            }
+
+            List<CellDto> pagedContent = allCellDtos.subList(start, end);
+            return new PageImpl<>(pagedContent, pageable, allCellDtos.size());
+
+        } else {
+            // Existing logic for DB pagination
+            Page<Cell> cellPage = cellRepository.findAll(Specification.allOf(specifications), pageable);
+
+            if (startDate != null && endDate != null && !cellPage.isEmpty()) {
+                List<Long> cellIds = cellPage.getContent().stream().map(Cell::getId).collect(Collectors.toList());
+                List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
+
+                Map<Long, Double> rates = stats.stream().collect(Collectors.toMap(
+                    AttendanceRepository.CellAttendanceStats::getCellId,
+                    s -> {
+                        double rate = (s.getTotalCount() > 0) ? (double) s.getPresentCount() / s.getTotalCount() * 100.0 : 0.0;
+                        return Math.round(rate * 100.0) / 100.0;
+                    }
+                ));
+
+                return cellPage.map(cell -> {
+                    Double rate = rates.getOrDefault(cell.getId(), 0.0);
+                    return CellDto.from(cell, rate);
+                });
+            }
+
+            return cellPage.map(CellDto::from);
         }
-
-        return cellPage.map(CellDto::from);
     }
 
     @Transactional
