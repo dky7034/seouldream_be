@@ -50,7 +50,8 @@ public class AuthController {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String accessToken = tokenProvider.generateAccessToken(authentication);
-        String refreshToken = tokenProvider.generateRefreshToken(authentication);
+        boolean rememberMe = Boolean.TRUE.equals(loginRequest.rememberMe());
+        String refreshToken = tokenProvider.generateRefreshToken(authentication, rememberMe);
 
         authService.saveRefreshToken(authentication.getName(), refreshToken);
 
@@ -85,8 +86,8 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<TokenRefreshResponse> refreshAccessToken(@Valid @RequestBody TokenRefreshRequest request) {
-        String newAccessToken = authService.refreshAccessToken(request.refreshToken());
-        return ResponseEntity.ok(new TokenRefreshResponse(newAccessToken));
+        TokenRefreshResponse response = authService.refreshAccessToken(request.refreshToken());
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/logout")

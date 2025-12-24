@@ -1,6 +1,7 @@
 package com.sdc.seouldreamcellbe.service;
 
 import com.sdc.seouldreamcellbe.domain.User;
+import com.sdc.seouldreamcellbe.dto.auth.TokenRefreshResponse;
 import com.sdc.seouldreamcellbe.exception.NotFoundException;
 import com.sdc.seouldreamcellbe.repository.UserRepository;
 import com.sdc.seouldreamcellbe.security.JwtTokenProvider;
@@ -23,7 +24,8 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    public String refreshAccessToken(String refreshToken) {
+    @Transactional
+    public TokenRefreshResponse refreshAccessToken(String refreshToken) {
         if (!tokenProvider.validateToken(refreshToken)) {
             throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
         }
@@ -40,7 +42,13 @@ public class AuthService {
         org.springframework.security.core.Authentication authentication = 
             new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
 
-        return tokenProvider.generateAccessToken(authentication);
+        String newAccessToken = tokenProvider.generateAccessToken(authentication);
+        // Refresh Token Rotation: Always extend session for active users (use long expiration)
+        String newRefreshToken = tokenProvider.generateRefreshToken(authentication, true);
+        
+        user.setRefreshToken(newRefreshToken);
+
+        return new TokenRefreshResponse(newAccessToken, newRefreshToken);
     }
 
     @Transactional

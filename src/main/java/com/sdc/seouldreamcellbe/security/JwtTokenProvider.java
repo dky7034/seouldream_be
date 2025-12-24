@@ -24,13 +24,16 @@ public class JwtTokenProvider {
     private final SecretKey key;
     private final long accessTokenExpirationMs;
     private final long refreshTokenExpirationMs;
+    private final long rememberMeExpirationMs;
 
     public JwtTokenProvider(@Value("${app.jwt.secret}") String secret,
                             @Value("${app.jwt.expiration-ms}") long accessTokenExpirationMs,
-                            @Value("${app.jwt.refresh-expiration-ms}") long refreshTokenExpirationMs) {
+                            @Value("${app.jwt.refresh-expiration-ms}") long refreshTokenExpirationMs,
+                            @Value("${app.jwt.remember-me-expiration-ms}") long rememberMeExpirationMs) {
         this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
+        this.rememberMeExpirationMs = rememberMeExpirationMs;
     }
 
     public String generateAccessToken(Authentication authentication) {
@@ -38,9 +41,14 @@ public class JwtTokenProvider {
         return generateToken(userPrincipal, accessTokenExpirationMs);
     }
 
-    public String generateRefreshToken(Authentication authentication) {
+    public String generateRefreshToken(Authentication authentication, boolean rememberMe) {
         User userPrincipal = (User) authentication.getPrincipal();
-        return generateToken(userPrincipal, refreshTokenExpirationMs);
+        long expirationMs = rememberMe ? rememberMeExpirationMs : refreshTokenExpirationMs;
+        return generateToken(userPrincipal, expirationMs);
+    }
+
+    public String generateRefreshToken(Authentication authentication) {
+        return generateRefreshToken(authentication, false);
     }
     
     private String generateToken(User userPrincipal, long expirationMs) {

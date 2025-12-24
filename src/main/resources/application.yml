@@ -21,4 +21,5 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET} # This value will be injected from an environment variable
     expiration-ms: 86400000 # 24 hours
-    refresh-expiration-ms: 604800000 # 7 days
+    refresh-expiration-ms: 86400000 # 1 day (default)
+    remember-me-expiration-ms: 2592000000 # 30 days
