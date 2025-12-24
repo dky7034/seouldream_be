@@ -98,6 +98,25 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
         @Param("cellId") Long cellId
     );
 
+    @Query("SELECT a.member.cell.id as cellId, " +
+           "SUM(CASE WHEN a.status = com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT THEN 1 ELSE 0 END) as presentCount, " +
+           "COUNT(a) as totalCount " +
+           "FROM Attendance a " +
+           "WHERE a.member.cell.id IN :cellIds " +
+           "AND a.date BETWEEN :startDate AND :endDate " +
+           "GROUP BY a.member.cell.id")
+    List<CellAttendanceStats> findAttendanceStatsByCellIds(
+        @Param("cellIds") List<Long> cellIds,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+
+    interface CellAttendanceStats {
+        Long getCellId();
+        Long getPresentCount();
+        Long getTotalCount();
+    }
+
     @Query("SELECT COUNT(m) FROM Member m " +
            "WHERE m.active = true " +
            "AND (:cellId IS NULL OR m.cell.id = :cellId) " +

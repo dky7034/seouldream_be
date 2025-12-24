@@ -22,6 +22,7 @@ public record CellDto(
     Integer maleCount,
     Integer femaleCount,
     List<MemberInfo> members,
+    Double attendanceRate, // Added field
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
@@ -39,6 +40,10 @@ public record CellDto(
     }
 
     public static CellDto from(Cell entity) {
+        return from(entity, null);
+    }
+
+    public static CellDto from(Cell entity, Double attendanceRate) {
         if (entity == null) return null;
 
         List<Member> activeMembers = entity.getMembers().stream()
@@ -64,6 +69,7 @@ public record CellDto(
             .maleCount((int) maleCount)
             .femaleCount((int) femaleCount)
             .members(activeMembers.stream().map(MemberInfo::from).collect(Collectors.toList()))
+            .attendanceRate(attendanceRate)
             .createdAt(entity.getCreatedAt())
             .updatedAt(entity.getUpdatedAt())
             .build();

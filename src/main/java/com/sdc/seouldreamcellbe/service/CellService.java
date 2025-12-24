@@ -42,11 +42,20 @@ public class CellService {
     private final CellRepository cellRepository;
     private final MemberRepository memberRepository;
     private final com.sdc.seouldreamcellbe.repository.AttendanceRepository attendanceRepository;
+    private final com.sdc.seouldreamcellbe.repository.SemesterRepository semesterRepository; // Added injection
     private final com.sdc.seouldreamcellbe.security.CurrentUserFinder currentUserFinder;
     private final ActiveSemesterService activeSemesterService;
 
     public List<Integer> getAvailableYears(Long cellId) {
         return attendanceRepository.findDistinctYearsByCellId(cellId);
+    }
+
+    public List<Integer> getAllAvailableYears() {
+        return semesterRepository.findAll().stream()
+            .flatMap(semester -> java.util.stream.Stream.of(semester.getStartDate().getYear(), semester.getEndDate().getYear()))
+            .distinct()
+            .sorted(java.util.Collections.reverseOrder())
+            .collect(Collectors.toList());
     }
 
     public CellLeaderDashboardDto getCellLeaderDashboardSummary(Long cellId, LocalDate startDate, LocalDate endDate) {
@@ -195,7 +204,7 @@ public class CellService {
     public Page<CellDto> getAllCells(String name, Boolean active, LocalDate startDate, LocalDate endDate, Pageable pageable) {
         List<Specification<Cell>> specifications = new ArrayList<>();
 
-        specifications.add(CellSpecification.hasDateBetween(startDate, endDate));
+        // specifications.add(CellSpecification.hasDateBetween(startDate, endDate)); // Removed to prevent filtering by creation date
 
         if (name != null && !name.isBlank()) {
             specifications.add(CellSpecification.hasName(name));
@@ -205,6 +214,25 @@ public class CellService {
         }
 
         Page<Cell> cellPage = cellRepository.findAll(Specification.allOf(specifications), pageable);
+
+        if (startDate != null && endDate != null && !cellPage.isEmpty()) {
+            List<Long> cellIds = cellPage.getContent().stream().map(Cell::getId).collect(Collectors.toList());
+            List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
+            
+            Map<Long, Double> rates = stats.stream().collect(Collectors.toMap(
+                AttendanceRepository.CellAttendanceStats::getCellId,
+                s -> {
+                    double rate = (s.getTotalCount() > 0) ? (double) s.getPresentCount() / s.getTotalCount() * 100.0 : 0.0;
+                    return Math.round(rate * 100.0) / 100.0;
+                }
+            ));
+
+            return cellPage.map(cell -> {
+                Double rate = rates.getOrDefault(cell.getId(), 0.0);
+                return CellDto.from(cell, rate);
+            });
+        }
+
         return cellPage.map(CellDto::from);
     }
 

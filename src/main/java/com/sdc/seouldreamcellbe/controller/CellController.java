@@ -93,23 +93,28 @@ public class CellController {
             return ResponseEntity.ok(rateDto);
         }
     
-        @GetMapping("/{cellId}/members/attendance-rate")
-        @PreAuthorize("hasRole('EXECUTIVE') or @customSecurityEvaluator.isCellLeaderOfCell(authentication, #cellId)")
-        public ResponseEntity<List<SimpleAttendanceRateDto>> getCellMembersAttendanceRates(
-            @PathVariable("cellId") Long cellId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month,
-            @RequestParam(required = false) Integer quarter,
-            @RequestParam(required = false) Integer half) {
-            DateUtil.DateRange effectiveRange = DateUtil.calculateDateRangeFromParams(startDate, endDate, year, month, quarter, half);
-            List<SimpleAttendanceRateDto> rates = attendanceSummaryService.getCellMembersAttendanceRates(cellId, effectiveRange.startDate(), effectiveRange.endDate());
-            return ResponseEntity.ok(rates);
-        }
-    
-        @GetMapping("/{cellId}/available-years")
-        @PreAuthorize("hasRole('EXECUTIVE') or @customSecurityEvaluator.isCellLeaderOfCell(authentication, #cellId)")
+            @GetMapping("/{cellId}/members/attendance-rate")
+            @PreAuthorize("hasRole('EXECUTIVE') or @customSecurityEvaluator.isCellLeaderOfCell(authentication, #cellId)")
+            public ResponseEntity<List<SimpleAttendanceRateDto>> getCellMembersAttendanceRates(
+                @PathVariable("cellId") Long cellId,
+                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+                @RequestParam(required = false) Integer year,
+                @RequestParam(required = false) Integer month,
+                @RequestParam(required = false) Integer quarter,
+                @RequestParam(required = false) Integer half) {
+                DateUtil.DateRange effectiveRange = DateUtil.calculateDateRangeFromParams(startDate, endDate, year, month, quarter, half);
+                List<SimpleAttendanceRateDto> rates = attendanceSummaryService.getCellMembersAttendanceRates(cellId, effectiveRange.startDate(), effectiveRange.endDate());
+                return ResponseEntity.ok(rates);
+            }
+        
+            @GetMapping("/available-years")
+            public ResponseEntity<List<Integer>> getAllAvailableYears() {
+                List<Integer> years = cellService.getAllAvailableYears();
+                return ResponseEntity.ok(years);
+            }
+        
+            @GetMapping("/{cellId}/available-years")        @PreAuthorize("hasRole('EXECUTIVE') or @customSecurityEvaluator.isCellLeaderOfCell(authentication, #cellId)")
         public ResponseEntity<List<Integer>> getAvailableYears(@PathVariable Long cellId) {
             List<Integer> years = cellService.getAvailableYears(cellId);
             return ResponseEntity.ok(years);
