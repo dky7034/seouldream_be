@@ -54,15 +54,14 @@ public class DateUtil {
             return new DateRange(startDate, endDate);
         }
 
-        // Default to current year if no specific range or period is given
-        int currentYear = LocalDate.now().getYear();
-        LocalDate yearStart = LocalDate.of(currentYear, 1, 1);
-        LocalDate yearEnd = LocalDate.of(currentYear, 12, 31);
-        
-        LocalDate finalStartDate = (startDate == null) ? yearStart : startDate;
-        LocalDate finalEndDate = (endDate == null) ? yearEnd : endDate;
-        
-        return new DateRange(finalStartDate, finalEndDate);
+        // If no parameters are provided at all (all null), return nulls to indicate "all time"
+        if (startDate == null && endDate == null) {
+            return new DateRange(null, null);
+        }
+
+        // Handle partial date ranges (one is null, one is not) - though typically calculateDateRangeFromParams implies a full range calculation logic.
+        // For partials, let's just return what is provided.
+        return new DateRange(startDate, endDate);
     }
 
     /**
