@@ -37,10 +37,16 @@ public class NoticeSpecification {
 
     public static Specification<Notice> hasDateBetween(LocalDate startDate, LocalDate endDate) {
         return (root, query, builder) -> {
-            if (startDate == null || endDate == null) {
-                return builder.conjunction();
+            if (startDate == null && endDate == null) {
+                return builder.conjunction(); // No date filter
             }
-            return builder.between(root.get("createdAt").as(LocalDate.class), startDate, endDate);
+            if (startDate != null && endDate != null) {
+                 return builder.between(root.get("createdAt").as(LocalDate.class), startDate, endDate);
+            }
+            // Handle partial range if needed (e.g. start -> future, or past -> end)
+            // For now, if one is missing, we can either ignore or handle. 
+            // Current behavior: if one is null, return conjunction (ignore).
+            return builder.conjunction();
         };
     }
 }
