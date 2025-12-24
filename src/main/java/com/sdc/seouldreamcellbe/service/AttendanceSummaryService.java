@@ -49,7 +49,7 @@ public class AttendanceSummaryService {
     private final ActiveSemesterService activeSemesterService;
 
 
-    public List<MemberAlertDto> getAttendanceAlerts(int consecutiveAbsences, String username) {
+    public List<MemberAlertDto> getAttendanceAlerts(int consecutiveAbsences, String username, LocalDate startDate, LocalDate endDate) {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다: " + username));
 
@@ -63,9 +63,10 @@ public class AttendanceSummaryService {
         }
 
         List<MemberAlertDto> alerts = new ArrayList<>();
+        LocalDate effectiveEndDate = (endDate != null) ? endDate : LocalDate.now();
 
         for (Member member : membersToCheck) {
-            List<Attendance> attendances = attendanceRepository.findByMemberIdOrderByDateDesc(member.getId());
+            List<Attendance> attendances = attendanceRepository.findByMemberIdAndDateLessThanEqualOrderByDateDesc(member.getId(), effectiveEndDate);
 
             if (attendances.isEmpty()) {
                 continue;
@@ -73,6 +74,10 @@ public class AttendanceSummaryService {
 
             int currentConsecutiveAbsences = 0;
             for (Attendance attendance : attendances) {
+                if (startDate != null && attendance.getDate().isBefore(startDate)) {
+                    break;
+                }
+
                 if (attendance.getStatus() == AttendanceStatus.ABSENT) {
                     currentConsecutiveAbsences++;
                 } else {

@@ -50,6 +50,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
     @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.member m LEFT JOIN FETCH m.cell c WHERE a.id = :id")
     Optional<Attendance> findWithMemberAndCellById(@Param("id") Long id);
 
+    List<Attendance> findByMemberIdAndDateLessThanEqualOrderByDateDesc(Long memberId, LocalDate date);
+
     // Interface for projection
     public interface DailyAttendanceStats {
         LocalDate getDate();

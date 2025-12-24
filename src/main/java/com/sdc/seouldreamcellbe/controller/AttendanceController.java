@@ -8,6 +8,8 @@ import com.sdc.seouldreamcellbe.dto.report.CellReportDto;
 import com.sdc.seouldreamcellbe.service.AttendanceService;
 import com.sdc.seouldreamcellbe.service.AttendanceSummaryService;
 import com.sdc.seouldreamcellbe.service.ReportService;
+import com.sdc.seouldreamcellbe.service.SemesterService;
+import com.sdc.seouldreamcellbe.dto.semester.SemesterDto;
 import com.sdc.seouldreamcellbe.util.DateUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class AttendanceController {
     private final AttendanceService attendanceService;
     private final ReportService reportService;
     private final AttendanceSummaryService attendanceSummaryService;
+    private final SemesterService semesterService;
 
     @GetMapping("/report")
     @PreAuthorize("hasRole('EXECUTIVE') or @customSecurityEvaluator.isCellLeaderOfCell(authentication, #cellId)")
@@ -107,8 +110,20 @@ public class AttendanceController {
     @PreAuthorize("hasAnyRole('EXECUTIVE', 'CELL_LEADER')")
     public ResponseEntity<List<MemberAlertDto>> getAttendanceAlerts(
         @RequestParam(defaultValue = "3") int consecutiveAbsences,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+        @RequestParam(required = false) Integer year,
+        @RequestParam(required = false) Long semesterId,
         @AuthenticationPrincipal UserDetails userDetails) {
-        List<MemberAlertDto> alerts = attendanceSummaryService.getAttendanceAlerts(consecutiveAbsences, userDetails.getUsername());
+
+        DateUtil.DateRange effectiveRange = DateUtil.calculateDateRangeFromParams(startDate, endDate, year, null, null, null);
+
+        if (semesterId != null) {
+            SemesterDto semester = semesterService.getSemesterById(semesterId);
+            effectiveRange = new DateUtil.DateRange(semester.startDate(), semester.endDate());
+        }
+
+        List<MemberAlertDto> alerts = attendanceSummaryService.getAttendanceAlerts(consecutiveAbsences, userDetails.getUsername(), effectiveRange.startDate(), effectiveRange.endDate());
         return ResponseEntity.ok(alerts);
     }
 
