@@ -157,12 +157,12 @@ public class AttendanceSummaryService {
 
                 long presentCount = groupAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
                 long absentCount = groupAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
-                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
                 
@@ -200,12 +200,12 @@ public class AttendanceSummaryService {
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
         long totalPresentAll = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         long totalAbsentAll = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
-            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         
@@ -293,12 +293,12 @@ public class AttendanceSummaryService {
 
                 long presentCount = groupAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
                 long absentCount = groupAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
-                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
                 
@@ -336,12 +336,12 @@ public class AttendanceSummaryService {
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
         long totalPresentAll = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         long totalAbsentAll = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
-            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         
@@ -449,20 +449,24 @@ public class AttendanceSummaryService {
             .collect(Collectors.toList());
 
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
-        // 중복 출석 제거 (distinct date)
+        // 중복 출석 제거 (distinct WEEKS)
         long totalPresentAll = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-            .map(Attendance::getDate)
+            .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
             
         long totalAbsentAll = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
-            .map(Attendance::getDate)
+            .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         
-        long totalRecordedAttendancesAll = totalPresentAll + totalAbsentAll; // 출석 또는 결석 기록이 있는 총 횟수 (Unique dates)
+        // Count distinct weeks with ANY record
+        long totalRecordedAttendancesAll = attendances.stream()
+            .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
+            .distinct()
+            .count();
 
         // 분모: 기간 내 전체 주일(일요일) 수 계산 (가입일/배정일 고려)
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
@@ -574,12 +578,12 @@ public class AttendanceSummaryService {
 
         long presentCount = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-            .map(Attendance::getDate)
+            .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         long absentCount = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
-            .map(Attendance::getDate)
+            .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
 
@@ -687,12 +691,12 @@ public class AttendanceSummaryService {
 
                 long presentCount = memberAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-                    .map(Attendance::getDate)
+                    .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
                 long absentCount = memberAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
-                    .map(Attendance::getDate)
+                    .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
                 

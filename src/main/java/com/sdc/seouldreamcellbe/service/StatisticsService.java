@@ -300,10 +300,10 @@ public class StatisticsService {
                 String dateGroup = entry.getKey();
                 List<Attendance> groupAttendances = entry.getValue();
                 
-                // 1. Calculate Present Records (Distinct Member+Date)
+                // 1. Calculate Present Records (Distinct Member+Week)
                 long presentRecordsInGroup = groupAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
                 
@@ -437,7 +437,7 @@ public class StatisticsService {
         List<Attendance> allAttendances = attendanceRepository.findAll(finalSpec);
         
         long totalRecords = allAttendances.stream()
-            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
 
@@ -475,7 +475,7 @@ public class StatisticsService {
             // Filter from the fetched list
              presentCount = allAttendances.stream()
                 .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-                .map(att -> att.getMember().getId() + "_" + att.getDate())
+                .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                 .distinct()
                 .count();
         }
