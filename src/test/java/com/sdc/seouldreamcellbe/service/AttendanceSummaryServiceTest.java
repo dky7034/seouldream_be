@@ -47,47 +47,61 @@ class AttendanceSummaryServiceTest {
     private AttendanceSummaryService attendanceSummaryService;
 
     @Test
-    @DisplayName("getOverallAttendanceSummary should exclude inactive members from attendance count")
-    void getOverallAttendanceSummary_shouldExcludeInactiveMembers() {
+    @DisplayName("getCellAttendanceSummary should calculate weighted average, not sum of individual rates")
+    void getCellAttendanceSummary_shouldCalculateWeightedAverage() {
         // Given
-        LocalDate sunday = LocalDate.of(2023, 10, 1); // A Sunday
-        LocalDate startDate = sunday;
-        LocalDate endDate = sunday;
+        LocalDate sunday1 = LocalDate.of(2023, 10, 1);
+        LocalDate sunday2 = LocalDate.of(2023, 10, 8);
+        LocalDate startDate = sunday1;
+        LocalDate endDate = sunday2;
+        Long cellId = 1L;
 
-        Cell cell = Cell.builder().id(1L).name("Test Cell").build();
+        Cell cell = Cell.builder().id(cellId).name("Test Cell").build();
 
-        Member memberA = Member.builder().id(1L).name("Member A").cell(cell).role(Role.MEMBER).active(true).build();
-        ReflectionTestUtils.setField(memberA, "createdAt", sunday.minusDays(10).atStartOfDay());
+        Member member1 = Member.builder().id(1L).name("M1").cell(cell).role(Role.MEMBER).active(true).build();
+        ReflectionTestUtils.setField(member1, "createdAt", sunday1.minusDays(10).atStartOfDay());
         
-        Member memberB = Member.builder().id(2L).name("Member B").cell(cell).role(Role.MEMBER).active(true).build();
-        ReflectionTestUtils.setField(memberB, "createdAt", sunday.minusDays(10).atStartOfDay());
+        Member member2 = Member.builder().id(2L).name("M2").cell(cell).role(Role.MEMBER).active(true).build();
+        ReflectionTestUtils.setField(member2, "createdAt", sunday1.minusDays(10).atStartOfDay());
         
-        Member memberC = Member.builder().id(3L).name("Member C (Inactive)").cell(cell).role(Role.MEMBER).active(false).build();
-        ReflectionTestUtils.setField(memberC, "createdAt", sunday.minusDays(10).atStartOfDay());
+        Member member3 = Member.builder().id(3L).name("M3").cell(cell).role(Role.MEMBER).active(true).build();
+        ReflectionTestUtils.setField(member3, "createdAt", sunday1.minusDays(10).atStartOfDay());
 
         // Attendance records
-        Attendance attA = Attendance.builder().member(memberA).date(sunday).status(AttendanceStatus.PRESENT).build();
-        Attendance attB = Attendance.builder().member(memberB).date(sunday).status(AttendanceStatus.ABSENT).build();
-        Attendance attC = Attendance.builder().member(memberC).date(sunday).status(AttendanceStatus.PRESENT).build(); // Inactive member present
+        // M1: Present, Present (2/2)
+        Attendance att1_1 = Attendance.builder().member(member1).date(sunday1).status(AttendanceStatus.PRESENT).build();
+        Attendance att1_2 = Attendance.builder().member(member1).date(sunday2).status(AttendanceStatus.PRESENT).build();
+        
+        // M2: Absent, Absent (0/2) - Assuming records exist but are absent, or no records?
+        // Let's assume explicit ABSENT records for clarity, although missing records might be treated as absent depending on logic.
+        // The service counts 'Total Present' from records. 'Total Possible' is calculated from date range.
+        // So even if M2 has NO records, he contributes to Total Possible (Denominator) but not Total Present (Numerator).
+        // Let's create ABSENT records just to be sure they don't count as Present.
+        Attendance att2_1 = Attendance.builder().member(member2).date(sunday1).status(AttendanceStatus.ABSENT).build();
+        Attendance att2_2 = Attendance.builder().member(member2).date(sunday2).status(AttendanceStatus.ABSENT).build();
 
-        // Mock repository responses
-        when(attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate))
-                .thenReturn(Arrays.asList(attA, attB, attC));
+        // M3: Present, Absent (1/2)
+        Attendance att3_1 = Attendance.builder().member(member3).date(sunday1).status(AttendanceStatus.PRESENT).build();
+        Attendance att3_2 = Attendance.builder().member(member3).date(sunday2).status(AttendanceStatus.ABSENT).build();
 
-        // activeMembers only returns A and B
-        when(memberRepository.findByCellIsNotNullAndRoleInAndActive(anyList(), anyBoolean()))
-                .thenReturn(Arrays.asList(memberA, memberB));
+        List<Attendance> attendances = Arrays.asList(att1_1, att1_2, att2_1, att2_2, att3_1, att3_2);
+
+        when(cellRepository.findById(cellId)).thenReturn(java.util.Optional.of(cell));
+        when(attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate))
+                .thenReturn(attendances);
+        when(memberRepository.findByCell_IdAndRoleInAndActive(any(), any(), anyBoolean()))
+                .thenReturn(Arrays.asList(member1, member2, member3));
 
         // When
-        OverallAttendanceSummaryDto result = attendanceSummaryService.getOverallAttendanceSummary(startDate, endDate, GroupBy.WEEK);
+        com.sdc.seouldreamcellbe.dto.attendance.CellAttendanceSummaryDto result = attendanceSummaryService.getCellAttendanceSummary(cellId, startDate, endDate, GroupBy.WEEK);
 
         // Then
-        // Total Possible: Member A and Member B for 1 Sunday = 2
-        // Total Present: Member A only (Member C is excluded) = 1
-        // Expected Rate: 1/2 * 100 = 50.0%
+        // Total Possible: 3 members * 2 weeks = 6
+        // Total Present: M1(2) + M2(0) + M3(1) = 3
+        // Expected Rate: 3/6 * 100 = 50.0%
 
-        assertThat(result.totalSummary().totalPossible()).isEqualTo(2);
-        assertThat(result.totalSummary().totalPresent()).isEqualTo(1);
+        assertThat(result.totalSummary().totalPossible()).isEqualTo(6);
+        assertThat(result.totalSummary().totalPresent()).isEqualTo(3);
         assertThat(result.totalSummary().attendanceRate()).isEqualTo(50.0);
     }
 }
