@@ -110,7 +110,8 @@ public class AttendanceSummaryService {
 
     public OverallAttendanceSummaryDto getOverallAttendanceSummary(LocalDate startDate, LocalDate endDate, GroupBy groupBy) {
         List<Attendance> attendances = attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate);
-        List<Member> allActiveMembers = memberRepository.findByActive(true);
+        // Filter out executives and unassigned members for accurate statistics
+        List<Member> allActiveMembers = memberRepository.findByCellIsNotNullAndRoleInAndActive(List.of(Role.MEMBER, Role.CELL_LEADER), true);
 
         Map<String, List<Attendance>> groupedAttendances;
 
@@ -156,12 +157,18 @@ public class AttendanceSummaryService {
 
                 long presentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
                 long absentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
-                long totalRecordedAttendancesInGroup = presentCount + absentCount;
-                double attendanceRate = (totalRecordedAttendancesInGroup > 0) ? ((double) presentCount / totalRecordedAttendancesInGroup) * 100.0 : 0.0;
+                
+                // NEW: Calculate accurate denominator based on ALL Sundays in the period, not just reported ones
+                LocalDate periodStartDate = getPeriodStartDate(dateGroup, groupBy);
+                LocalDate periodEndDate = getPeriodEndDate(dateGroup, groupBy);
+                List<LocalDate> allSundaysInPeriod = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStartDate, periodEndDate);
+                
+                long totalPossible = calculatePossibleAttendance(allSundaysInPeriod, allActiveMembers);
+
+                double attendanceRate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
                 attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
 
                 // For display, calculate members who were active by the end of the period
-                LocalDate periodEndDate = getPeriodEndDate(dateGroup, groupBy);
                 long activeMembersInPeriod = allActiveMembers.stream()
                     .filter(member -> member.getCreatedAt() != null && !member.getCreatedAt().toLocalDate().isAfter(periodEndDate))
                     .count();
@@ -170,6 +177,7 @@ public class AttendanceSummaryService {
                     .dateGroup(dateGroup)
                     .totalPresent(presentCount)
                     .totalAbsent(absentCount)
+                    .totalPossible(totalPossible) // Set totalPossible
                     .totalMembers(activeMembersInPeriod) // Display the count of members at the end of the period
                     .attendanceRate(attendanceRate) // Use the accurately calculated rate
                     .build();
@@ -180,8 +188,12 @@ public class AttendanceSummaryService {
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
         long totalPresentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
         long totalAbsentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
-        long totalRecordedAttendancesAll = totalPresentAll + totalAbsentAll;
-        double overallAttendanceRate = (totalRecordedAttendancesAll > 0) ? ((double) totalPresentAll / totalRecordedAttendancesAll) * 100.0 : 0.0;
+        
+        // NEW: Calculate accurate denominator for total summary based on ALL Sundays in the range
+        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        long totalPossibleAll = calculatePossibleAttendance(allSundaysInPeriodAll, allActiveMembers);
+        
+        double overallAttendanceRate = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) * 100.0 : 0.0;
         overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
 
         // For display, count members active at the end of the period
@@ -189,16 +201,12 @@ public class AttendanceSummaryService {
             .filter(member -> member.getCreatedAt() != null && !member.getCreatedAt().toLocalDate().isAfter(endDate))
             .count();
 
-        List<LocalDate> allDatesInPeriod = attendances.stream()
-            .map(Attendance::getDate)
-            .distinct()
-            .toList();
-
         OverallAttendanceSummaryDto.TotalSummaryDto totalSummary = OverallAttendanceSummaryDto.TotalSummaryDto.builder()
             .totalPresent(totalPresentAll)
             .totalAbsent(totalAbsentAll)
+            .totalPossible(totalPossibleAll) // Set totalPossible
             .totalMembersInPeriod(totalMembersInPeriod) // Use member count at end of period
-            .totalRecordedDates(allDatesInPeriod.size()) // Total unique dates attendance was recorded on
+            .totalRecordedDates(allSundaysInPeriodAll.size()) // Total unique dates in period
             .attendanceRate(overallAttendanceRate)
             .build();
 
@@ -214,7 +222,8 @@ public class AttendanceSummaryService {
             .orElseThrow(() -> new NotFoundException("셀을 찾을 수 없습니다. ID: " + cellId));
 
         List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
-        List<Member> activeMembersInCell = memberRepository.findByCell_IdAndActive(cellId, true);
+        // Filter out executives from cell statistics for accuracy
+        List<Member> activeMembersInCell = memberRepository.findByCell_IdAndRoleInAndActive(cellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
 
         Map<String, List<Attendance>> groupedAttendances;
 
@@ -260,11 +269,18 @@ public class AttendanceSummaryService {
 
                 long presentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
                 long absentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
-                long totalRecordedAttendancesInGroup = presentCount + absentCount;
-                double attendanceRate = (totalRecordedAttendancesInGroup > 0) ? ((double) presentCount / totalRecordedAttendancesInGroup) * 100.0 : 0.0;
-                attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
-                // For display, calculate members who were active by the end of the period
+                
+                // NEW: Calculate accurate denominator based on ALL Sundays in the period
+                LocalDate periodStartDate = getPeriodStartDate(dateGroup, groupBy);
                 LocalDate periodEndDate = getPeriodEndDate(dateGroup, groupBy);
+                List<LocalDate> allSundaysInPeriod = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStartDate, periodEndDate);
+                
+                long totalPossible = calculatePossibleAttendance(allSundaysInPeriod, activeMembersInCell);
+
+                double attendanceRate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
+                attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+                
+                // For display, calculate members who were active by the end of the period
                 long activeMembersInPeriod = activeMembersInCell.stream()
                     .filter(member -> member.getCreatedAt() != null && !member.getCreatedAt().toLocalDate().isAfter(periodEndDate))
                     .count();
@@ -273,6 +289,7 @@ public class AttendanceSummaryService {
                     .dateGroup(dateGroup)
                     .totalPresent(presentCount)
                     .totalAbsent(absentCount)
+                    .totalPossible(totalPossible) // Set totalPossible
                     .totalMembers(activeMembersInPeriod) // Display the count of members at the end of the period
                     .attendanceRate(attendanceRate) // Use the accurately calculated rate
                     .build();
@@ -283,21 +300,20 @@ public class AttendanceSummaryService {
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
         long totalPresentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
         long totalAbsentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
-        long totalRecordedAttendancesAll = totalPresentAll + totalAbsentAll;
-        double overallAttendanceRate = (totalRecordedAttendancesAll > 0) ? ((double) totalPresentAll / totalRecordedAttendancesAll) * 100.0 : 0.0;
-        overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
+        
+        // NEW: Calculate accurate denominator for total summary based on ALL Sundays
+        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        long totalPossibleAll = calculatePossibleAttendance(allSundaysInPeriodAll, activeMembersInCell);
 
-        // Calculate the true denominator for the entire period
-        List<LocalDate> allDatesInPeriod = attendances.stream()
-            .map(Attendance::getDate)
-            .distinct()
-            .toList();
+        double overallAttendanceRate = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) * 100.0 : 0.0;
+        overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
 
         CellAttendanceSummaryDto.TotalSummaryDto totalSummary = CellAttendanceSummaryDto.TotalSummaryDto.builder()
             .totalPresent(totalPresentAll)
             .totalAbsent(totalAbsentAll)
+            .totalPossible(totalPossibleAll) // Set totalPossible
             .totalMembers(activeMembersInCell.size()) // Total members in the cell at present
-            .totalRecordedDates(allDatesInPeriod.size()) // Total unique dates attendance was recorded on
+            .totalRecordedDates(allSundaysInPeriodAll.size()) // Total Sundays in range
             .attendanceRate(overallAttendanceRate)
             .build();
 
@@ -407,6 +423,39 @@ public class AttendanceSummaryService {
             .build();
     }
 
+    private LocalDate getPeriodStartDate(String dateGroup, GroupBy groupBy) {
+        try {
+            switch (groupBy) {
+                case DAY:
+                    return LocalDate.parse(dateGroup, DateTimeFormatter.ISO_LOCAL_DATE);
+                case WEEK:
+                    DateTimeFormatter weekFormatter = new DateTimeFormatterBuilder()
+                        .appendPattern("YYYY-'W'ww")
+                        .parseDefaulting(WeekFields.ISO.dayOfWeek(), 1) // Monday
+                        .toFormatter(Locale.ENGLISH);
+                    return LocalDate.parse(dateGroup, weekFormatter);
+                case MONTH:
+                    return YearMonth.parse(dateGroup, DateTimeFormatter.ofPattern("yyyy-MM")).atDay(1);
+                case QUARTER:
+                    String[] quarterParts = dateGroup.split("-Q");
+                    int year = Integer.parseInt(quarterParts[0]);
+                    int quarter = Integer.parseInt(quarterParts[1]);
+                    return LocalDate.of(year, (quarter - 1) * 3 + 1, 1);
+                case HALF_YEAR:
+                    String[] halfParts = dateGroup.split("-H");
+                    int halfYear = Integer.parseInt(halfParts[0]);
+                    int half = Integer.parseInt(halfParts[1]);
+                    return half == 1 ? LocalDate.of(halfYear, 1, 1) : LocalDate.of(halfYear, 7, 1);
+                case YEAR:
+                    return LocalDate.of(Integer.parseInt(dateGroup), 1, 1);
+                default:
+                    return LocalDate.now();
+            }
+        } catch (DateTimeParseException | NumberFormatException e) {
+            return LocalDate.now();
+        }
+    }
+
     private LocalDate getPeriodEndDate(String dateGroup, GroupBy groupBy) {
         try {
             switch (groupBy) {
@@ -491,9 +540,13 @@ public class AttendanceSummaryService {
         Cell cell = cellRepository.findById(cellId)
             .orElseThrow(() -> new NotFoundException("셀을 찾을 수 없습니다. ID: " + cellId));
 
-        // Note: This logic calculates the rate based on recorded attendance entries.
-        // It doesn't account for days where no attendance was recorded for anyone in the cell.
         List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, finalStartDate, finalEndDate);
+        
+        // Filter out executives
+        List<Member> activeMembersInCell = memberRepository.findByCell_IdAndRoleInAndActive(cellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
+        
+        List<LocalDate> meetingDates = attendances.stream().map(Attendance::getDate).distinct().toList();
+        long totalPossible = calculatePossibleAttendance(meetingDates, activeMembersInCell);
 
         long presentCount = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
@@ -501,7 +554,9 @@ public class AttendanceSummaryService {
         long absentCount = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
             .count();
-        long totalDays = presentCount + absentCount;
+        
+        // Use totalPossible as the denominator
+        long totalDays = totalPossible;
 
         double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
         attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
@@ -599,5 +654,21 @@ public class AttendanceSummaryService {
             .startDate(startDate)
             .endDate(endDate)
             .build();
+    }
+
+    private long calculatePossibleAttendance(List<LocalDate> meetingDates, List<Member> members) {
+        long count = 0;
+        for (LocalDate date : meetingDates) {
+            for (Member member : members) {
+                LocalDate memberStartDate = member.getCellAssignmentDate();
+                if (memberStartDate == null) {
+                    memberStartDate = (member.getCreatedAt() != null) ? member.getCreatedAt().toLocalDate() : LocalDate.MIN;
+                }
+                if (!memberStartDate.isAfter(date)) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 }

@@ -9,6 +9,9 @@ public record OverallAttendanceStatDto(
     @Schema(description = "주어진 필터 조건에 해당하는 전체 출석 기록 수", example = "150")
     long totalRecords,
 
+    @Schema(description = "전체 대상 인원 x 모임 횟수 (분모)", example = "515")
+    long totalPossible, // NEW
+
     @Schema(description = "주어진 필터 조건에 해당하는 출석률 (%)", example = "88.5")
     double attendanceRate,
 

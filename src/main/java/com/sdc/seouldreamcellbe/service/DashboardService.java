@@ -396,6 +396,7 @@ public class DashboardService {
                 .dateGroup(cellPeriod.dateGroup())
                 .totalPresent(cellPeriod.totalPresent())
                 .totalAbsent(cellPeriod.totalAbsent())
+                .totalPossible(cellPeriod.totalPossible()) // Add totalPossible
                 .totalMembers(cellPeriod.totalMembers())
                 .attendanceRate(cellPeriod.attendanceRate())
                 .build())
@@ -407,6 +408,7 @@ public class DashboardService {
             overallTotalSummary = OverallAttendanceSummaryDto.TotalSummaryDto.builder()
                 .totalPresent(cellTotal.totalPresent())
                 .totalAbsent(cellTotal.totalAbsent())
+                .totalPossible(cellTotal.totalPossible()) // Add totalPossible
                 .totalMembersInPeriod(cellTotal.totalMembers())
                 .totalRecordedDates(cellTotal.totalRecordedDates())
                 .attendanceRate(cellTotal.attendanceRate())

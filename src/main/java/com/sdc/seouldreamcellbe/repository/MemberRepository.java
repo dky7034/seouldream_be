@@ -89,4 +89,12 @@ public interface MemberRepository extends JpaRepository<Member, Long>, JpaSpecif
            "GROUP BY FUNCTION('YEAR', m.birthDate), m.gender " +
            "ORDER BY year ASC")
     List<Object[]> findBirthYearDistribution();
+
+    List<Member> findByCellIsNotNullAndRoleInAndActive(List<com.sdc.seouldreamcellbe.domain.common.Role> roles, boolean active);
+
+    @Query("SELECT m FROM Member m WHERE m.cell.id = :cellId AND m.role IN :roles AND m.active = :active")
+    List<Member> findByCell_IdAndRoleInAndActive(@Param("cellId") Long cellId, @Param("roles") List<com.sdc.seouldreamcellbe.domain.common.Role> roles, @Param("active") boolean active);
+
+    @Query("SELECT m FROM Member m WHERE m.cell.id IN :cellIds AND m.role IN :roles AND m.active = :active")
+    List<Member> findByCell_IdInAndRoleInAndActive(@Param("cellIds") List<Long> cellIds, @Param("roles") List<com.sdc.seouldreamcellbe.domain.common.Role> roles, @Param("active") boolean active);
 }

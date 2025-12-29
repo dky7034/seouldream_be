@@ -31,11 +31,29 @@ public record CellDto(
         Long id,
         String name,
         Gender gender,
-        LocalDate birthDate
+        LocalDate birthDate,
+        LocalDate cellAssignmentDate,
+        LocalDateTime createdAt,
+        Integer joinYear
     ) {
         public static MemberInfo from(Member member) {
             if (member == null) return null;
-            return new MemberInfo(member.getId(), member.getName(), member.getGender(), member.getBirthDate());
+            
+            // Fallback to createdAt if cellAssignmentDate is null to prevent frontend defaults (e.g., year 2000)
+            LocalDate assignmentDate = member.getCellAssignmentDate();
+            if (assignmentDate == null && member.getCreatedAt() != null) {
+                assignmentDate = member.getCreatedAt().toLocalDate();
+            }
+
+            return new MemberInfo(
+                member.getId(),
+                member.getName(),
+                member.getGender(),
+                member.getBirthDate(),
+                assignmentDate,
+                member.getCreatedAt(),
+                member.getJoinYear()
+            );
         }
     }
 

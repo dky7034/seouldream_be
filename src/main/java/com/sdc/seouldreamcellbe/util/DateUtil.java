@@ -100,4 +100,17 @@ public class DateUtil {
         LocalDate saturday = date.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY));
         return new DateRange(sunday, saturday);
     }
+
+    /**
+     * Returns a list of all Sundays within the given range (inclusive).
+     */
+    public static java.util.List<LocalDate> getSundaysInRange(LocalDate startDate, LocalDate endDate) {
+        java.util.List<LocalDate> sundays = new java.util.ArrayList<>();
+        LocalDate current = startDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        while (!current.isAfter(endDate)) {
+            sundays.add(current);
+            current = current.plusWeeks(1);
+        }
+        return sundays;
+    }
 }

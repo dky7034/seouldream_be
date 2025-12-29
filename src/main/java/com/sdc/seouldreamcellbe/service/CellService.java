@@ -47,6 +47,7 @@ public class CellService {
     private final com.sdc.seouldreamcellbe.repository.SemesterRepository semesterRepository; // Added injection
     private final com.sdc.seouldreamcellbe.security.CurrentUserFinder currentUserFinder;
     private final ActiveSemesterService activeSemesterService;
+    private final AttendanceSummaryService attendanceSummaryService; // Injected for accurate calculation
 
     public List<Integer> getAvailableYears(Long cellId) {
         return attendanceRepository.findDistinctYearsByCellId(cellId);
@@ -96,20 +97,15 @@ public class CellService {
                 .presentRecords(0).totalMembers(0).attendanceRate(0.0).incompleteCheckCount(0).build();
         }
 
-        // Calculate presentRecords, absentRecords, attendanceRate
+        // Calculate attendance metrics using AttendanceSummaryService for accuracy (considers assignment date & excludes executives)
+        com.sdc.seouldreamcellbe.dto.attendance.SimpleAttendanceRateDto rateDto = attendanceSummaryService.getCellAttendanceRate(cellId, startDate, endDate);
+        
+        long presentRecords = rateDto.presentCount();
+        // long absentRecords = rateDto.absentCount();
+        double attendanceRate = rateDto.attendanceRate();
+
+        // Calculate incompleteCheckCount (Needs raw data)
         List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
-        long presentRecords = attendances.stream()
-            .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
-            .count();
-        long absentRecords = attendances.stream()
-            .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
-            .count();
-        long totalRecordedAttendances = presentRecords + absentRecords;
-
-        double attendanceRate = (totalRecordedAttendances > 0) ? ((double) presentRecords / totalRecordedAttendances) * 100.0 : 0.0;
-        attendanceRate = Math.round(attendanceRate * 100.0) / 100.0; // Round to two decimal places
-
-        // Calculate incompleteCheckCount
         int incompleteCheckCount = 0;
         List<LocalDate> sundaysInPeriod = startDate.datesUntil(endDate.plusDays(1))
             .filter(date -> date.getDayOfWeek() == DayOfWeek.SUNDAY)
@@ -225,12 +221,25 @@ public class CellService {
             List<CellDto> allCellDtos;
             if (startDate != null && endDate != null && !allCells.isEmpty()) {
                 List<Long> cellIds = allCells.stream().map(Cell::getId).collect(Collectors.toList());
-                List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
+                
+                // Strict Calculation Logic
+                Map<Long, Long> presentCounts = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate).stream()
+                    .collect(Collectors.toMap(AttendanceRepository.CellAttendanceStats::getCellId, AttendanceRepository.CellAttendanceStats::getPresentCount));
 
-                Map<Long, Double> rates = stats.stream().collect(Collectors.toMap(
-                    AttendanceRepository.CellAttendanceStats::getCellId,
-                    s -> {
-                        double rate = (s.getTotalCount() > 0) ? (double) s.getPresentCount() / s.getTotalCount() * 100.0 : 0.0;
+                List<Member> allActiveMembersInCells = memberRepository.findByCell_IdInAndRoleInAndActive(
+                    cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
+                );
+                Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
+                
+                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+
+                Map<Long, Double> rates = cellIds.stream().collect(Collectors.toMap(
+                    id -> id,
+                    id -> {
+                        long present = presentCounts.getOrDefault(id, 0L);
+                        List<Member> members = membersByCellId.getOrDefault(id, Collections.emptyList());
+                        long possible = calculatePossibleAttendance(allSundays, members);
+                        double rate = (possible > 0) ? (double) present / possible * 100.0 : 0.0;
                         return Math.round(rate * 100.0) / 100.0;
                     }
                 ));
@@ -276,12 +285,25 @@ public class CellService {
 
             if (startDate != null && endDate != null && !cellPage.isEmpty()) {
                 List<Long> cellIds = cellPage.getContent().stream().map(Cell::getId).collect(Collectors.toList());
-                List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
+                
+                // Strict Calculation Logic for Paged Content
+                Map<Long, Long> presentCounts = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate).stream()
+                    .collect(Collectors.toMap(AttendanceRepository.CellAttendanceStats::getCellId, AttendanceRepository.CellAttendanceStats::getPresentCount));
 
-                Map<Long, Double> rates = stats.stream().collect(Collectors.toMap(
-                    AttendanceRepository.CellAttendanceStats::getCellId,
-                    s -> {
-                        double rate = (s.getTotalCount() > 0) ? (double) s.getPresentCount() / s.getTotalCount() * 100.0 : 0.0;
+                List<Member> allActiveMembersInCells = memberRepository.findByCell_IdInAndRoleInAndActive(
+                    cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
+                );
+                Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
+                
+                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+
+                Map<Long, Double> rates = cellIds.stream().collect(Collectors.toMap(
+                    id -> id,
+                    id -> {
+                        long present = presentCounts.getOrDefault(id, 0L);
+                        List<Member> members = membersByCellId.getOrDefault(id, Collections.emptyList());
+                        long possible = calculatePossibleAttendance(allSundays, members);
+                        double rate = (possible > 0) ? (double) present / possible * 100.0 : 0.0;
                         return Math.round(rate * 100.0) / 100.0;
                     }
                 ));
@@ -416,5 +438,21 @@ public class CellService {
             })
             .sorted(Comparator.comparing(CellMemberAttendanceSummaryDto::memberName))
             .collect(Collectors.toList());
+    }
+
+    private long calculatePossibleAttendance(List<LocalDate> meetingDates, List<Member> members) {
+        long count = 0;
+        for (LocalDate date : meetingDates) {
+            for (Member member : members) {
+                LocalDate memberStartDate = member.getCellAssignmentDate();
+                if (memberStartDate == null) {
+                    memberStartDate = (member.getCreatedAt() != null) ? member.getCreatedAt().toLocalDate() : LocalDate.MIN;
+                }
+                if (!memberStartDate.isAfter(date)) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 }

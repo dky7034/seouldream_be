@@ -42,6 +42,12 @@ public record MemberDto(
 
         String username = (entity.getUser() != null) ? entity.getUser().getUsername() : null; // NEW
 
+        // Fallback to createdAt if cellAssignmentDate is null
+        LocalDate assignmentDate = entity.getCellAssignmentDate();
+        if (assignmentDate == null && entity.getCreatedAt() != null) {
+            assignmentDate = entity.getCreatedAt().toLocalDate();
+        }
+
         return MemberDto.builder()
             .id(entity.getId())
             .name(entity.getName())
@@ -51,7 +57,7 @@ public record MemberDto(
             .phone(entity.getPhone())
             .email(entity.getEmail())
             .cell(cellInfo)
-            .cellAssignmentDate(entity.getCellAssignmentDate()) // ADDED
+            .cellAssignmentDate(assignmentDate) // Updated with fallback
             .role(entity.getRole())
             .joinYear(entity.getJoinYear())
             .active(entity.getActive())

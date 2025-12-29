@@ -16,6 +16,7 @@ public record CellAttendanceSummaryDto(
     public record TotalSummaryDto(
         long totalPresent,
         long totalAbsent,
+        long totalPossible, // NEW: 분모
         long totalMembers, // 전체 멤버 수
         long totalRecordedDates, // 출석이 기록된 총 날짜 수
         double attendanceRate // 전체 기간 출석률

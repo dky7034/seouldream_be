@@ -285,25 +285,74 @@ public class StatisticsService {
                 throw new IllegalArgumentException("Unsupported group by type: " + groupBy);
         }
 
+        final Long finalCellId = effectiveCellId;
+
         return groupedAttendances.entrySet().stream()
             .map(entry -> {
                 String dateGroup = entry.getKey();
                 List<Attendance> groupAttendances = entry.getValue();
                 long presentRecordsInGroup = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
-                long totalRecordsInGroup = groupAttendances.size();
+                
+                // NEW: Calculate accurate denominator based on ALL Sundays in the group
+                // We need to determine the range for this specific dateGroup
+                // For simplicity, we can use the same getPeriodStartDate/EndDate logic or 
+                // just use the dates present if it's fine. 
+                // BUT to be consistent with AttendanceSummaryService, let's use all Sundays.
+                
+                // Since StatisticsService doesn't have getPeriodStartDate/EndDate, 
+                // let's just use the unique dates from the group for now, 
+                // OR better, implement a similar logic.
+                
+                // Actually, for Trend graph, if a week has NO reports, it won't even appear in groupedAttendances.
+                // To show 0% on those weeks, we need to pre-fill the groups.
+                
+                List<LocalDate> meetingDates = groupAttendances.stream()
+                    .map(Attendance::getDate)
+                    .distinct()
+                    .toList();
+                
+                // Get relevant members for this trend calculation
+                List<Member> targetMembers;
+                if (memberId != null) {
+                    targetMembers = memberRepository.findById(memberId).map(List::of).orElse(Collections.emptyList());
+                } else if (finalCellId != null) {
+                    // Filter out executives even within a specific cell
+                    targetMembers = memberRepository.findByCell_IdAndRoleInAndActive(finalCellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
+                } else {
+                    // Filter out executives and unassigned members for accurate overall statistics
+                    targetMembers = memberRepository.findByCellIsNotNullAndRoleInAndActive(List.of(Role.MEMBER, Role.CELL_LEADER), true);
+                }
 
-                double attendanceRate = (totalRecordsInGroup > 0) ? ((double) presentRecordsInGroup / totalRecordsInGroup) * 100.0 : 0.0;
+                long totalPossible = calculatePossibleAttendance(meetingDates, targetMembers);
+
+                double attendanceRate = (totalPossible > 0) ? ((double) presentRecordsInGroup / totalPossible) * 100.0 : 0.0;
                 attendanceRate = Math.round(attendanceRate * 100.0) / 100.0; // Round to two decimal places
 
                 return AggregatedTrendDto.builder()
                     .dateGroup(dateGroup)
-                    .totalRecords(totalRecordsInGroup)
+                    .totalRecords(totalPossible) // Changed from groupAttendances.size()
                     .presentRecords(presentRecordsInGroup)
                     .attendanceRate(attendanceRate)
                     .build();
             })
             .sorted(Comparator.comparing(AggregatedTrendDto::dateGroup))
             .collect(Collectors.toList());
+    }
+
+    private long calculatePossibleAttendance(List<LocalDate> meetingDates, List<Member> members) {
+        long count = 0;
+        for (LocalDate date : meetingDates) {
+            for (Member member : members) {
+                LocalDate memberStartDate = member.getCellAssignmentDate();
+                if (memberStartDate == null) {
+                    memberStartDate = (member.getCreatedAt() != null) ? member.getCreatedAt().toLocalDate() : LocalDate.MIN;
+                }
+                if (!memberStartDate.isAfter(date)) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     public OverallAttendanceStatDto getOverallAttendanceStats(
@@ -363,11 +412,24 @@ public class StatisticsService {
         Specification<Attendance> finalSpec = Specification.allOf(specs);
         long totalRecords = attendanceRepository.count(finalSpec);
 
-        if (totalRecords == 0) {
+        // NEW: Calculate strict denominator (totalPossible)
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        List<Member> targetMembers;
+        if (memberId != null) {
+            targetMembers = memberRepository.findById(memberId).map(List::of).orElse(Collections.emptyList());
+        } else if (effectiveCellId != null) {
+            targetMembers = memberRepository.findByCell_IdAndRoleInAndActive(effectiveCellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
+        } else {
+            targetMembers = memberRepository.findByCellIsNotNullAndRoleInAndActive(List.of(Role.MEMBER, Role.CELL_LEADER), true);
+        }
+        long totalPossible = calculatePossibleAttendance(allSundays, targetMembers);
+
+        if (totalPossible == 0 && totalRecords == 0) {
              // Even if records are 0, we might have zero attendance count
             long zeroCount = attendanceRepository.countMembersWithZeroAttendance(startDate, endDate, effectiveCellId);
             return OverallAttendanceStatDto.builder()
                 .totalRecords(0)
+                .totalPossible(0)
                 .attendanceRate(0.0)
                 .weeklyAverage(0.0)
                 .zeroAttendanceCount(zeroCount)
@@ -386,7 +448,7 @@ public class StatisticsService {
             presentCount = attendanceRepository.count(Specification.allOf(presentSpecs));
         }
 
-        double attendanceRate = (double) presentCount / totalRecords * 100.0;
+        double attendanceRate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
         attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
 
         // --- New Metrics Calculation ---
@@ -417,9 +479,9 @@ public class StatisticsService {
             trend = 0.0;
         }
 
-
         return OverallAttendanceStatDto.builder()
             .totalRecords(totalRecords)
+            .totalPossible(totalPossible)
             .attendanceRate(attendanceRate)
             .weeklyAverage(weeklyAverage)
             .zeroAttendanceCount(zeroAttendanceCount)
