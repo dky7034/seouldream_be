@@ -445,9 +445,19 @@ public class AttendanceSummaryService {
                         .absentCount(dailyAttendance != null && dailyAttendance.getStatus() == AttendanceStatus.ABSENT ? 1L : 0L)
                         .build();
                 } else {
-                    // For WEEK/MONTH, return counts
-                    long presentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
-                    long absentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
+                    // For WEEK/MONTH, return counts based on DISTINCT WEEKS
+                    long presentCount = groupAttendances.stream()
+                        .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+                        .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
+                        .distinct()
+                        .count();
+                        
+                    long absentCount = groupAttendances.stream()
+                        .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+                        .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
+                        .distinct()
+                        .count();
+                        
                     return MemberPeriodSummaryDto.builder()
                         .dateGroup(dateGroup)
                         .status(null)
@@ -640,17 +650,30 @@ public class AttendanceSummaryService {
 
         List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, finalStartDate, finalEndDate);
         
-        // Filter out executives
+        // Filter out executives and non-active members
         List<Member> activeMembersInCell = memberRepository.findByCell_IdAndRoleInAndActive(cellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
-        
-        List<LocalDate> meetingDates = attendances.stream().map(Attendance::getDate).distinct().toList();
-        long totalPossible = calculatePossibleAttendance(meetingDates, activeMembersInCell);
+        Set<Long> activeMemberIds = activeMembersInCell.stream().map(Member::getId).collect(Collectors.toSet());
 
-        long presentCount = attendances.stream()
+        // Filter attendances to include only active members
+        List<Attendance> filteredAttendances = attendances.stream()
+            .filter(att -> activeMemberIds.contains(att.getMember().getId()))
+            .collect(Collectors.toList());
+        
+        // Use all Sundays in the range for the denominator to ensure consistent average calculation
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, finalEndDate);
+        long totalPossible = calculatePossibleAttendance(allSundays, activeMembersInCell);
+
+        // Count distinct weekly attendance for each member
+        long presentCount = filteredAttendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+            .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
+            .distinct()
             .count();
-        long absentCount = attendances.stream()
+            
+        long absentCount = filteredAttendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+            .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
+            .distinct()
             .count();
         
         // Use totalPossible as the denominator
@@ -658,6 +681,11 @@ public class AttendanceSummaryService {
 
         double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
         attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+        
+        // Safe Guard: Limit to 100%
+        if (attendanceRate > 100.0) {
+            attendanceRate = 100.0;
+        }
 
         return SimpleAttendanceRateDto.builder()
             .targetId(cellId)

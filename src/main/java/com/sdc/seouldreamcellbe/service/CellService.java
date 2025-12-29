@@ -222,18 +222,12 @@ public class CellService {
             if (startDate != null && endDate != null && !allCells.isEmpty()) {
                 List<Long> cellIds = allCells.stream().map(Cell::getId).collect(Collectors.toList());
                 
-                // Strict Calculation Logic
-                // Strict Calculation Logic
-                List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
-                
                 List<Member> allActiveMembersInCells = memberRepository.findByCell_IdInAndRoleInAndActive(
                     cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
                 );
                 Set<Long> activeMemberIds = allActiveMembersInCells.stream().map(Member::getId).collect(Collectors.toSet());
 
-                // Filter attendance stats to only include active members
-                // Since the query findAttendanceStatsByCellIds sums up everything, we need a more granular approach or filter the attendances first.
-                // For performance, let's fetch attendances of these cells and filter them.
+                // Fetch attendances and filter by active members
                 List<Attendance> attendances = attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate).stream()
                     .filter(att -> att.getMember().getCell() != null && cellIds.contains(att.getMember().getCell().getId()))
                     .filter(att -> activeMemberIds.contains(att.getMember().getId()))
@@ -241,7 +235,12 @@ public class CellService {
 
                 Map<Long, Long> presentCounts = attendances.stream()
                     .filter(att -> att.getStatus() == com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT)
-                    .collect(Collectors.groupingBy(att -> att.getMember().getCell().getId(), Collectors.counting()));
+                    .map(att -> new java.util.AbstractMap.SimpleEntry<>(
+                        att.getMember().getCell().getId(),
+                        att.getMember().getId() + "_" + att.getDate().get(java.time.temporal.IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+                    ))
+                    .distinct()
+                    .collect(Collectors.groupingBy(java.util.Map.Entry::getKey, Collectors.counting()));
 
                 Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
                 
@@ -254,6 +253,7 @@ public class CellService {
                         List<Member> members = membersByCellId.getOrDefault(id, Collections.emptyList());
                         long possible = calculatePossibleAttendance(allSundays, members);
                         double rate = (possible > 0) ? (double) present / possible * 100.0 : 0.0;
+                        if (rate > 100.0) rate = 100.0;
                         return Math.round(rate * 100.0) / 100.0;
                     }
                 ));
@@ -265,7 +265,6 @@ public class CellService {
                     })
                     .collect(Collectors.toList());
             } else {
-                // If no date range, rate is 0.0 or handle accordingly. Assuming 0.0 for now if no range.
                 allCellDtos = allCells.stream()
                     .map(CellDto::from)
                     .collect(Collectors.toList());
@@ -285,7 +284,6 @@ public class CellService {
             int start = (int) pageable.getOffset();
             int end = Math.min((start + pageable.getPageSize()), allCellDtos.size());
             
-            // Handle case where start is beyond size
             if (start > allCellDtos.size()) {
                  return new PageImpl<>(Collections.emptyList(), pageable, allCellDtos.size());
             }
@@ -300,18 +298,11 @@ public class CellService {
             if (startDate != null && endDate != null && !cellPage.isEmpty()) {
                 List<Long> cellIds = cellPage.getContent().stream().map(Cell::getId).collect(Collectors.toList());
                 
-                // Strict Calculation Logic for Paged Content
-                // Strict Calculation Logic
-                List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
-                
                 List<Member> allActiveMembersInCells = memberRepository.findByCell_IdInAndRoleInAndActive(
                     cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
                 );
                 Set<Long> activeMemberIds = allActiveMembersInCells.stream().map(Member::getId).collect(Collectors.toSet());
 
-                // Filter attendance stats to only include active members
-                // Since the query findAttendanceStatsByCellIds sums up everything, we need a more granular approach or filter the attendances first.
-                // For performance, let's fetch attendances of these cells and filter them.
                 List<Attendance> attendances = attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate).stream()
                     .filter(att -> att.getMember().getCell() != null && cellIds.contains(att.getMember().getCell().getId()))
                     .filter(att -> activeMemberIds.contains(att.getMember().getId()))
@@ -319,7 +310,12 @@ public class CellService {
 
                 Map<Long, Long> presentCounts = attendances.stream()
                     .filter(att -> att.getStatus() == com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT)
-                    .collect(Collectors.groupingBy(att -> att.getMember().getCell().getId(), Collectors.counting()));
+                    .map(att -> new java.util.AbstractMap.SimpleEntry<>(
+                        att.getMember().getCell().getId(),
+                        att.getMember().getId() + "_" + att.getDate().get(java.time.temporal.IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+                    ))
+                    .distinct()
+                    .collect(Collectors.groupingBy(java.util.Map.Entry::getKey, Collectors.counting()));
 
                 Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
                 
@@ -332,6 +328,7 @@ public class CellService {
                         List<Member> members = membersByCellId.getOrDefault(id, Collections.emptyList());
                         long possible = calculatePossibleAttendance(allSundays, members);
                         double rate = (possible > 0) ? (double) present / possible * 100.0 : 0.0;
+                        if (rate > 100.0) rate = 100.0;
                         return Math.round(rate * 100.0) / 100.0;
                     }
                 ));
