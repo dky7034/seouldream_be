@@ -401,17 +401,38 @@ public class AttendanceSummaryService {
             .collect(Collectors.toList());
 
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
-        long totalPresentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
-        long totalAbsentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
-        long totalRecordedAttendancesAll = totalPresentAll + totalAbsentAll; // 출석 또는 결석 기록이 있는 총 횟수
-        double overallAttendanceRate = (totalRecordedAttendancesAll > 0) ? ((double) totalPresentAll / totalRecordedAttendancesAll) * 100.0 : 0.0;
+        // 중복 출석 제거 (distinct date)
+        long totalPresentAll = attendances.stream()
+            .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+            .map(Attendance::getDate)
+            .distinct()
+            .count();
+            
+        long totalAbsentAll = attendances.stream()
+            .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+            .map(Attendance::getDate)
+            .distinct()
+            .count();
+        
+        long totalRecordedAttendancesAll = totalPresentAll + totalAbsentAll; // 출석 또는 결석 기록이 있는 총 횟수 (Unique dates)
+
+        // 분모: 기간 내 전체 주일(일요일) 수 계산 (가입일/배정일 고려)
+        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        long totalPossible = calculatePossibleAttendance(allSundaysInPeriodAll, List.of(member));
+
+        double overallAttendanceRate = (totalPossible > 0) ? ((double) totalPresentAll / totalPossible) * 100.0 : 0.0;
         overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
+        
+        // Safe Guard: 100% 초과 시 100%로 제한
+        if (overallAttendanceRate > 100.0) {
+            overallAttendanceRate = 100.0;
+        }
 
         MemberAttendanceSummaryDto.TotalSummaryDto totalSummary = MemberAttendanceSummaryDto.TotalSummaryDto.builder()
             .totalPresent(totalPresentAll)
             .totalAbsent(totalAbsentAll)
-            .totalRecordedDates(totalRecordedAttendancesAll) // 변경: 새로운 총 기록 횟수 사용
-            .totalPossibleAttendances(totalRecordedAttendancesAll) // 변경: 새로운 총 기록 횟수 사용
+            .totalRecordedDates(totalRecordedAttendancesAll)
+            .totalPossibleAttendances(totalPossible) // 전체 가능 주차 수
             .attendanceRate(overallAttendanceRate)
             .build();
 
@@ -505,15 +526,28 @@ public class AttendanceSummaryService {
 
         long presentCount = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+            .map(Attendance::getDate)
+            .distinct()
             .count();
         long absentCount = attendances.stream()
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+            .map(Attendance::getDate)
+            .distinct()
             .count();
 
-        long totalDays = presentCount + absentCount;
+        // Calculate total possible Sundays in the requested range
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        long totalPossible = calculatePossibleAttendance(allSundays, List.of(member));
+
+        // Use totalPossible as denominator
+        long totalDays = totalPossible;
 
         double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
         attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+        
+        if (attendanceRate > 100.0) {
+            attendanceRate = 100.0;
+        }
 
         return SimpleAttendanceRateDto.builder()
             .targetId(memberId)
@@ -597,21 +631,32 @@ public class AttendanceSummaryService {
         Map<Long, List<Attendance>> attendancesByMember = attendances.stream()
             .collect(Collectors.groupingBy(att -> att.getMember().getId()));
 
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, finalEndDate);
+
         return activeMembers.stream()
             .map(member -> {
                 List<Attendance> memberAttendances = attendancesByMember.getOrDefault(member.getId(), Collections.emptyList());
 
                 long presentCount = memberAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+                    .map(Attendance::getDate)
+                    .distinct()
                     .count();
                 long absentCount = memberAttendances.stream()
                     .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+                    .map(Attendance::getDate)
+                    .distinct()
                     .count();
-                long totalDays = presentCount + absentCount;
+                
+                long totalDays = calculatePossibleAttendance(allSundays, List.of(member));
 
                 double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
                 // Round to two decimal places
                 attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+                
+                if (attendanceRate > 100.0) {
+                    attendanceRate = 100.0;
+                }
 
                 return SimpleAttendanceRateDto.builder()
                     .targetId(member.getId())
