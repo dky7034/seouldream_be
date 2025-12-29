@@ -112,6 +112,12 @@ public class AttendanceSummaryService {
         List<Attendance> attendances = attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate);
         // Filter out executives and unassigned members for accurate statistics
         List<Member> allActiveMembers = memberRepository.findByCellIsNotNullAndRoleInAndActive(List.of(Role.MEMBER, Role.CELL_LEADER), true);
+        Set<Long> activeMemberIds = allActiveMembers.stream().map(Member::getId).collect(Collectors.toSet());
+
+        // Filter attendances to include only active members
+        attendances = attendances.stream()
+            .filter(att -> activeMemberIds.contains(att.getMember().getId()))
+            .collect(Collectors.toList());
 
         Map<String, List<Attendance>> groupedAttendances;
 
@@ -248,6 +254,12 @@ public class AttendanceSummaryService {
         List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
         // Filter out executives from cell statistics for accuracy
         List<Member> activeMembersInCell = memberRepository.findByCell_IdAndRoleInAndActive(cellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
+        Set<Long> activeMemberIds = activeMembersInCell.stream().map(Member::getId).collect(Collectors.toSet());
+
+        // Filter attendances to include only active members
+        attendances = attendances.stream()
+            .filter(att -> activeMemberIds.contains(att.getMember().getId()))
+            .collect(Collectors.toList());
 
         Map<String, List<Attendance>> groupedAttendances;
 
