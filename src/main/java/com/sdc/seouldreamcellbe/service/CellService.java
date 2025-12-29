@@ -223,12 +223,26 @@ public class CellService {
                 List<Long> cellIds = allCells.stream().map(Cell::getId).collect(Collectors.toList());
                 
                 // Strict Calculation Logic
-                Map<Long, Long> presentCounts = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate).stream()
-                    .collect(Collectors.toMap(AttendanceRepository.CellAttendanceStats::getCellId, AttendanceRepository.CellAttendanceStats::getPresentCount));
-
+                // Strict Calculation Logic
+                List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
+                
                 List<Member> allActiveMembersInCells = memberRepository.findByCell_IdInAndRoleInAndActive(
                     cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
                 );
+                Set<Long> activeMemberIds = allActiveMembersInCells.stream().map(Member::getId).collect(Collectors.toSet());
+
+                // Filter attendance stats to only include active members
+                // Since the query findAttendanceStatsByCellIds sums up everything, we need a more granular approach or filter the attendances first.
+                // For performance, let's fetch attendances of these cells and filter them.
+                List<Attendance> attendances = attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate).stream()
+                    .filter(att -> att.getMember().getCell() != null && cellIds.contains(att.getMember().getCell().getId()))
+                    .filter(att -> activeMemberIds.contains(att.getMember().getId()))
+                    .collect(Collectors.toList());
+
+                Map<Long, Long> presentCounts = attendances.stream()
+                    .filter(att -> att.getStatus() == com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT)
+                    .collect(Collectors.groupingBy(att -> att.getMember().getCell().getId(), Collectors.counting()));
+
                 Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
                 
                 List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
@@ -287,12 +301,26 @@ public class CellService {
                 List<Long> cellIds = cellPage.getContent().stream().map(Cell::getId).collect(Collectors.toList());
                 
                 // Strict Calculation Logic for Paged Content
-                Map<Long, Long> presentCounts = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate).stream()
-                    .collect(Collectors.toMap(AttendanceRepository.CellAttendanceStats::getCellId, AttendanceRepository.CellAttendanceStats::getPresentCount));
-
+                // Strict Calculation Logic
+                List<AttendanceRepository.CellAttendanceStats> stats = attendanceRepository.findAttendanceStatsByCellIds(cellIds, startDate, endDate);
+                
                 List<Member> allActiveMembersInCells = memberRepository.findByCell_IdInAndRoleInAndActive(
                     cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
                 );
+                Set<Long> activeMemberIds = allActiveMembersInCells.stream().map(Member::getId).collect(Collectors.toSet());
+
+                // Filter attendance stats to only include active members
+                // Since the query findAttendanceStatsByCellIds sums up everything, we need a more granular approach or filter the attendances first.
+                // For performance, let's fetch attendances of these cells and filter them.
+                List<Attendance> attendances = attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate).stream()
+                    .filter(att -> att.getMember().getCell() != null && cellIds.contains(att.getMember().getCell().getId()))
+                    .filter(att -> activeMemberIds.contains(att.getMember().getId()))
+                    .collect(Collectors.toList());
+
+                Map<Long, Long> presentCounts = attendances.stream()
+                    .filter(att -> att.getStatus() == com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT)
+                    .collect(Collectors.groupingBy(att -> att.getMember().getCell().getId(), Collectors.counting()));
+
                 Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
                 
                 List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
