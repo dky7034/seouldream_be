@@ -236,6 +236,13 @@ public class StatisticsService {
             return Collections.emptyList();
         }
 
+        // Prepare for SEMESTER grouping
+        Map<String, com.sdc.seouldreamcellbe.domain.Semester> semesterMap = new java.util.HashMap<>();
+        if (groupBy == GroupBy.SEMESTER) {
+             List<com.sdc.seouldreamcellbe.domain.Semester> allSemesters = semesterRepository.findAll(org.springframework.data.domain.Sort.by("startDate"));
+             allSemesters.forEach(s -> semesterMap.put(s.getName(), s));
+        }
+
         // Group in-memory
         Map<String, List<Attendance>> groupedAttendances;
         switch (groupBy) {
@@ -270,15 +277,16 @@ public class StatisticsService {
                 groupedAttendances = attendances.stream().collect(Collectors.groupingBy(att -> String.valueOf(att.getDate().getYear())));
                 break;
             case SEMESTER:
-                List<com.sdc.seouldreamcellbe.domain.Semester> allSemesters = semesterRepository.findAll(org.springframework.data.domain.Sort.by("startDate"));
-                groupedAttendances = attendances.stream()
+                 groupedAttendances = attendances.stream()
                     .collect(Collectors.groupingBy(att -> {
                         LocalDate attDate = att.getDate();
-                        return allSemesters.stream()
+                        // Find matching semester from the map values (need to iterate or use previously fetched list)
+                        // Efficient way: iterate the map values since it's small
+                        return semesterMap.values().stream()
                             .filter(sem -> !attDate.isBefore(sem.getStartDate()) && !attDate.isAfter(sem.getEndDate()))
                             .findFirst()
                             .map(com.sdc.seouldreamcellbe.domain.Semester::getName)
-                            .orElse("미분류"); // Uncategorized
+                            .orElse("미분류");
                     }));
                 break;
             default:
@@ -291,46 +299,62 @@ public class StatisticsService {
             .map(entry -> {
                 String dateGroup = entry.getKey();
                 List<Attendance> groupAttendances = entry.getValue();
-                long presentRecordsInGroup = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
                 
-                // NEW: Calculate accurate denominator based on ALL Sundays in the group
-                // We need to determine the range for this specific dateGroup
-                // For simplicity, we can use the same getPeriodStartDate/EndDate logic or 
-                // just use the dates present if it's fine. 
-                // BUT to be consistent with AttendanceSummaryService, let's use all Sundays.
-                
-                // Since StatisticsService doesn't have getPeriodStartDate/EndDate, 
-                // let's just use the unique dates from the group for now, 
-                // OR better, implement a similar logic.
-                
-                // Actually, for Trend graph, if a week has NO reports, it won't even appear in groupedAttendances.
-                // To show 0% on those weeks, we need to pre-fill the groups.
-                
-                List<LocalDate> meetingDates = groupAttendances.stream()
-                    .map(Attendance::getDate)
+                // 1. Calculate Present Records (Distinct Member+Date)
+                long presentRecordsInGroup = groupAttendances.stream()
+                    .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+                    .map(att -> att.getMember().getId() + "_" + att.getDate())
                     .distinct()
-                    .toList();
+                    .count();
+                
+                // 2. Determine Period Range for Denominator
+                LocalDate periodStart;
+                LocalDate periodEnd;
+                
+                if (groupBy == GroupBy.SEMESTER) {
+                    if ("미분류".equals(dateGroup)) {
+                        // For uncategorized, maybe use the min/max of the attendances
+                        periodStart = groupAttendances.stream().map(Attendance::getDate).min(LocalDate::compareTo).orElse(LocalDate.now());
+                        periodEnd = groupAttendances.stream().map(Attendance::getDate).max(LocalDate::compareTo).orElse(LocalDate.now());
+                    } else {
+                        com.sdc.seouldreamcellbe.domain.Semester sem = semesterMap.get(dateGroup);
+                        if (sem != null) {
+                            periodStart = sem.getStartDate();
+                            periodEnd = sem.getEndDate();
+                        } else {
+                            periodStart = LocalDate.now(); periodEnd = LocalDate.now();
+                        }
+                    }
+                } else {
+                    periodStart = getPeriodStartDate(dateGroup, groupBy);
+                    periodEnd = getPeriodEndDate(dateGroup, groupBy);
+                }
+                
+                // 3. Calculate Total Possible (All Sundays in Period)
+                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStart, periodEnd);
                 
                 // Get relevant members for this trend calculation
                 List<Member> targetMembers;
                 if (memberId != null) {
                     targetMembers = memberRepository.findById(memberId).map(List::of).orElse(Collections.emptyList());
                 } else if (finalCellId != null) {
-                    // Filter out executives even within a specific cell
                     targetMembers = memberRepository.findByCell_IdAndRoleInAndActive(finalCellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
                 } else {
-                    // Filter out executives and unassigned members for accurate overall statistics
                     targetMembers = memberRepository.findByCellIsNotNullAndRoleInAndActive(List.of(Role.MEMBER, Role.CELL_LEADER), true);
                 }
 
-                long totalPossible = calculatePossibleAttendance(meetingDates, targetMembers);
+                long totalPossible = calculatePossibleAttendance(allSundays, targetMembers);
 
                 double attendanceRate = (totalPossible > 0) ? ((double) presentRecordsInGroup / totalPossible) * 100.0 : 0.0;
-                attendanceRate = Math.round(attendanceRate * 100.0) / 100.0; // Round to two decimal places
+                attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+                
+                if (attendanceRate > 100.0) {
+                    attendanceRate = 100.0;
+                }
 
                 return AggregatedTrendDto.builder()
                     .dateGroup(dateGroup)
-                    .totalRecords(totalPossible) // Changed from groupAttendances.size()
+                    .totalRecords(totalPossible) // Changed to represent denominator
                     .presentRecords(presentRecordsInGroup)
                     .attendanceRate(attendanceRate)
                     .build();
@@ -410,7 +434,12 @@ public class StatisticsService {
         }
 
         Specification<Attendance> finalSpec = Specification.allOf(specs);
-        long totalRecords = attendanceRepository.count(finalSpec);
+        List<Attendance> allAttendances = attendanceRepository.findAll(finalSpec);
+        
+        long totalRecords = allAttendances.stream()
+            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .distinct()
+            .count();
 
         // NEW: Calculate strict denominator (totalPossible)
         List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
@@ -443,13 +472,20 @@ public class StatisticsService {
         } else if (status == AttendanceStatus.ABSENT) {
             presentCount = 0;
         } else {
-            List<Specification<Attendance>> presentSpecs = new ArrayList<>(specs);
-            presentSpecs.add(AttendanceSpecification.hasStatus(AttendanceStatus.PRESENT));
-            presentCount = attendanceRepository.count(Specification.allOf(presentSpecs));
+            // Filter from the fetched list
+             presentCount = allAttendances.stream()
+                .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+                .map(att -> att.getMember().getId() + "_" + att.getDate())
+                .distinct()
+                .count();
         }
 
         double attendanceRate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
         attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+        
+        if (attendanceRate > 100.0) {
+            attendanceRate = 100.0;
+        }
 
         // --- New Metrics Calculation ---
         Double weeklyAverage = attendanceRepository.calculateWeeklyAverageAttendance(startDate, endDate, effectiveCellId);
@@ -487,5 +523,72 @@ public class StatisticsService {
             .zeroAttendanceCount(zeroAttendanceCount)
             .attendanceTrend(trend)
             .build();
+    }
+
+    private LocalDate getPeriodStartDate(String dateGroup, GroupBy groupBy) {
+        try {
+            switch (groupBy) {
+                case DAY:
+                    return LocalDate.parse(dateGroup, DateTimeFormatter.ISO_LOCAL_DATE);
+                case WEEK:
+                    DateTimeFormatter weekFormatter = new java.time.format.DateTimeFormatterBuilder()
+                        .appendPattern("YYYY-'W'ww")
+                        .parseDefaulting(java.time.temporal.WeekFields.ISO.dayOfWeek(), 1) // Monday
+                        .toFormatter(java.util.Locale.ENGLISH);
+                    return LocalDate.parse(dateGroup, weekFormatter);
+                case MONTH:
+                    return java.time.YearMonth.parse(dateGroup, DateTimeFormatter.ofPattern("yyyy-MM")).atDay(1);
+                case QUARTER:
+                    String[] quarterParts = dateGroup.split("-Q");
+                    int year = Integer.parseInt(quarterParts[0]);
+                    int quarter = Integer.parseInt(quarterParts[1]);
+                    return LocalDate.of(year, (quarter - 1) * 3 + 1, 1);
+                case HALF_YEAR:
+                    String[] halfParts = dateGroup.split("-H");
+                    int halfYear = Integer.parseInt(halfParts[0]);
+                    int half = Integer.parseInt(halfParts[1]);
+                    return half == 1 ? LocalDate.of(halfYear, 1, 1) : LocalDate.of(halfYear, 7, 1);
+                case YEAR:
+                    return LocalDate.of(Integer.parseInt(dateGroup), 1, 1);
+                default:
+                    return LocalDate.now();
+            }
+        } catch (java.time.format.DateTimeParseException | NumberFormatException e) {
+            return LocalDate.now();
+        }
+    }
+
+    private LocalDate getPeriodEndDate(String dateGroup, GroupBy groupBy) {
+        try {
+            switch (groupBy) {
+                case DAY:
+                    return LocalDate.parse(dateGroup, DateTimeFormatter.ISO_LOCAL_DATE);
+                case WEEK:
+                    // Assuming format "YYYY-Www" e.g., "2023-W05"
+                    DateTimeFormatter weekFormatter = new java.time.format.DateTimeFormatterBuilder()
+                        .appendPattern("YYYY-'W'ww")
+                        .parseDefaulting(java.time.temporal.WeekFields.ISO.dayOfWeek(), 7) // Sunday
+                        .toFormatter(java.util.Locale.ENGLISH);
+                    return LocalDate.parse(dateGroup, weekFormatter);
+                case MONTH:
+                    return java.time.YearMonth.parse(dateGroup, DateTimeFormatter.ofPattern("yyyy-MM")).atEndOfMonth();
+                case QUARTER:
+                    String[] quarterParts = dateGroup.split("-Q");
+                    int year = Integer.parseInt(quarterParts[0]);
+                    int quarter = Integer.parseInt(quarterParts[1]);
+                    return LocalDate.of(year, quarter * 3, 1).with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+                case HALF_YEAR:
+                    String[] halfParts = dateGroup.split("-H");
+                    int halfYear = Integer.parseInt(halfParts[0]);
+                    int half = Integer.parseInt(halfParts[1]);
+                    return half == 1 ? LocalDate.of(halfYear, 6, 30) : LocalDate.of(halfYear, 12, 31);
+                case YEAR:
+                    return LocalDate.of(Integer.parseInt(dateGroup), 12, 31);
+                default:
+                    return LocalDate.now();
+            }
+        } catch (java.time.format.DateTimeParseException | NumberFormatException e) {
+            return LocalDate.now();
+        }
     }
 }

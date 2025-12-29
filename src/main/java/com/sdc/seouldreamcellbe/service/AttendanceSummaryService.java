@@ -155,8 +155,16 @@ public class AttendanceSummaryService {
                 String dateGroup = entry.getKey();
                 List<Attendance> groupAttendances = entry.getValue();
 
-                long presentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
-                long absentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
+                long presentCount = groupAttendances.stream()
+                    .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .distinct()
+                    .count();
+                long absentCount = groupAttendances.stream()
+                    .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .distinct()
+                    .count();
                 
                 // NEW: Calculate accurate denominator based on ALL Sundays in the period, not just reported ones
                 LocalDate periodStartDate = getPeriodStartDate(dateGroup, groupBy);
@@ -167,6 +175,10 @@ public class AttendanceSummaryService {
 
                 double attendanceRate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
                 attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+                
+                if (attendanceRate > 100.0) {
+                    attendanceRate = 100.0;
+                }
 
                 // For display, calculate members who were active by the end of the period
                 long activeMembersInPeriod = allActiveMembers.stream()
@@ -186,8 +198,16 @@ public class AttendanceSummaryService {
             .collect(Collectors.toList());
 
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
-        long totalPresentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
-        long totalAbsentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
+        long totalPresentAll = attendances.stream()
+            .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .distinct()
+            .count();
+        long totalAbsentAll = attendances.stream()
+            .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .distinct()
+            .count();
         
         // NEW: Calculate accurate denominator for total summary based on ALL Sundays in the range
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
@@ -195,6 +215,10 @@ public class AttendanceSummaryService {
         
         double overallAttendanceRate = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) * 100.0 : 0.0;
         overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
+
+        if (overallAttendanceRate > 100.0) {
+            overallAttendanceRate = 100.0;
+        }
 
         // For display, count members active at the end of the period
         long totalMembersInPeriod = allActiveMembers.stream()
@@ -267,8 +291,16 @@ public class AttendanceSummaryService {
                 String dateGroup = entry.getKey();
                 List<Attendance> groupAttendances = entry.getValue();
 
-                long presentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
-                long absentCount = groupAttendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
+                long presentCount = groupAttendances.stream()
+                    .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .distinct()
+                    .count();
+                long absentCount = groupAttendances.stream()
+                    .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+                    .map(att -> att.getMember().getId() + "_" + att.getDate())
+                    .distinct()
+                    .count();
                 
                 // NEW: Calculate accurate denominator based on ALL Sundays in the period
                 LocalDate periodStartDate = getPeriodStartDate(dateGroup, groupBy);
@@ -279,6 +311,10 @@ public class AttendanceSummaryService {
 
                 double attendanceRate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
                 attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+                
+                if (attendanceRate > 100.0) {
+                    attendanceRate = 100.0;
+                }
                 
                 // For display, calculate members who were active by the end of the period
                 long activeMembersInPeriod = activeMembersInCell.stream()
@@ -298,8 +334,16 @@ public class AttendanceSummaryService {
             .collect(Collectors.toList());
 
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
-        long totalPresentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.PRESENT).count();
-        long totalAbsentAll = attendances.stream().filter(att -> att.getStatus() == AttendanceStatus.ABSENT).count();
+        long totalPresentAll = attendances.stream()
+            .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .distinct()
+            .count();
+        long totalAbsentAll = attendances.stream()
+            .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
+            .map(att -> att.getMember().getId() + "_" + att.getDate())
+            .distinct()
+            .count();
         
         // NEW: Calculate accurate denominator for total summary based on ALL Sundays
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
@@ -307,6 +351,10 @@ public class AttendanceSummaryService {
 
         double overallAttendanceRate = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) * 100.0 : 0.0;
         overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
+        
+        if (overallAttendanceRate > 100.0) {
+            overallAttendanceRate = 100.0;
+        }
 
         CellAttendanceSummaryDto.TotalSummaryDto totalSummary = CellAttendanceSummaryDto.TotalSummaryDto.builder()
             .totalPresent(totalPresentAll)
