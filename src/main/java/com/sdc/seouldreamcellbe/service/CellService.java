@@ -107,7 +107,9 @@ public class CellService {
         // Calculate incompleteCheckCount (Needs raw data)
         List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
         int incompleteCheckCount = 0;
-        List<LocalDate> sundaysInPeriod = startDate.datesUntil(endDate.plusDays(1))
+        
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+        List<LocalDate> sundaysInPeriod = startDate.datesUntil(calculationEndDate.plusDays(1))
             .filter(date -> date.getDayOfWeek() == DayOfWeek.SUNDAY)
             .collect(Collectors.toList());
 
@@ -244,7 +246,8 @@ public class CellService {
 
                 Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
                 
-                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+                LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
 
                 Map<Long, Double> rates = cellIds.stream().collect(Collectors.toMap(
                     id -> id,
@@ -319,7 +322,8 @@ public class CellService {
 
                 Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
                 
-                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+                LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
 
                 Map<Long, Double> rates = cellIds.stream().collect(Collectors.toMap(
                     id -> id,

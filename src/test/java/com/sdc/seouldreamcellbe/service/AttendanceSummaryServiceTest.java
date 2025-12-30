@@ -21,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,11 +73,7 @@ class AttendanceSummaryServiceTest {
         Attendance att1_1 = Attendance.builder().member(member1).date(sunday1).status(AttendanceStatus.PRESENT).build();
         Attendance att1_2 = Attendance.builder().member(member1).date(sunday2).status(AttendanceStatus.PRESENT).build();
         
-        // M2: Absent, Absent (0/2) - Assuming records exist but are absent, or no records?
-        // Let's assume explicit ABSENT records for clarity, although missing records might be treated as absent depending on logic.
-        // The service counts 'Total Present' from records. 'Total Possible' is calculated from date range.
-        // So even if M2 has NO records, he contributes to Total Possible (Denominator) but not Total Present (Numerator).
-        // Let's create ABSENT records just to be sure they don't count as Present.
+        // M2: Absent, Absent (0/2)
         Attendance att2_1 = Attendance.builder().member(member2).date(sunday1).status(AttendanceStatus.ABSENT).build();
         Attendance att2_2 = Attendance.builder().member(member2).date(sunday2).status(AttendanceStatus.ABSENT).build();
 
@@ -103,5 +100,77 @@ class AttendanceSummaryServiceTest {
         assertThat(result.totalSummary().totalPossible()).isEqualTo(6);
         assertThat(result.totalSummary().totalPresent()).isEqualTo(3);
         assertThat(result.totalSummary().attendanceRate()).isEqualTo(50.0);
+    }
+
+    @Test
+    @DisplayName("getCellAttendanceSummary should exclude future dates from totalPossible calculation")
+    void getCellAttendanceSummary_shouldExcludeFutureDates() {
+        // Given
+        LocalDate today = LocalDate.now();
+        // Start date 2 weeks ago
+        LocalDate startDate = today.minusWeeks(2);
+        // End date 4 weeks in future
+        LocalDate endDate = today.plusWeeks(4);
+        Long cellId = 1L;
+
+        Cell cell = Cell.builder().id(cellId).name("Test Cell").build();
+        Member member1 = Member.builder().id(1L).name("M1").cell(cell).role(Role.MEMBER).active(true).build();
+        ReflectionTestUtils.setField(member1, "createdAt", startDate.minusDays(10).atStartOfDay());
+
+        when(cellRepository.findById(cellId)).thenReturn(java.util.Optional.of(cell));
+        when(memberRepository.findByCell_IdAndRoleInAndActive(any(), any(), anyBoolean()))
+                .thenReturn(Arrays.asList(member1));
+        when(attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate))
+                .thenReturn(Collections.emptyList());
+
+        // When
+        com.sdc.seouldreamcellbe.dto.attendance.CellAttendanceSummaryDto result = attendanceSummaryService.getCellAttendanceSummary(cellId, startDate, endDate, GroupBy.WEEK);
+
+        // Then
+        // Calculate expected Sundays manually (up to today)
+        List<LocalDate> expectedSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, today);
+        long expectedPossible = expectedSundays.size();
+
+        assertThat(result.totalSummary().totalPossible()).isEqualTo(expectedPossible);
+        
+        // Verify that if we included future dates, it would be more
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        if (allSundays.size() > expectedSundays.size()) {
+             assertThat(result.totalSummary().totalPossible()).isLessThan(allSundays.size());
+        }
+    }
+
+    @Test
+    @DisplayName("getAttendanceRates should calculate rates correctly for multiple members")
+    void getAttendanceRates_shouldCalculateCorrectly() {
+        // Given
+        LocalDate sunday1 = LocalDate.of(2023, 10, 1);
+        LocalDate sunday2 = LocalDate.of(2023, 10, 8);
+        LocalDate startDate = sunday1;
+        LocalDate endDate = sunday2;
+
+        Member member1 = Member.builder().id(1L).name("M1").active(true).build();
+        ReflectionTestUtils.setField(member1, "createdAt", sunday1.minusDays(10).atStartOfDay());
+        
+        Member member2 = Member.builder().id(2L).name("M2").active(true).build();
+        ReflectionTestUtils.setField(member2, "createdAt", sunday1.minusDays(10).atStartOfDay());
+
+        // M1: 2/2 Present
+        Attendance att1_1 = Attendance.builder().member(member1).date(sunday1).status(AttendanceStatus.PRESENT).build();
+        Attendance att1_2 = Attendance.builder().member(member1).date(sunday2).status(AttendanceStatus.PRESENT).build();
+
+        // M2: 1/2 Present
+        Attendance att2_1 = Attendance.builder().member(member2).date(sunday1).status(AttendanceStatus.PRESENT).build();
+        Attendance att2_2 = Attendance.builder().member(member2).date(sunday2).status(AttendanceStatus.ABSENT).build();
+
+        when(attendanceRepository.findByMember_IdInAndDateBetween(anyList(), any(), any()))
+            .thenReturn(Arrays.asList(att1_1, att1_2, att2_1, att2_2));
+
+        // When
+        java.util.Map<Long, Double> rates = attendanceSummaryService.getAttendanceRates(Arrays.asList(member1, member2), startDate, endDate);
+
+        // Then
+        assertThat(rates).containsEntry(1L, 100.0);
+        assertThat(rates).containsEntry(2L, 50.0);
     }
 }

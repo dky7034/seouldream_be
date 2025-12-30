@@ -52,6 +52,11 @@ public class ReportService {
             startDate = activeSemester.getStartDate();
             endDate = activeSemester.getEndDate();
         }
+        
+        // Prevent checking future dates for incomplete checks
+        if (endDate != null && endDate.isAfter(LocalDate.now())) {
+            endDate = LocalDate.now();
+        }
 
         // 1. Find all Sundays in the given period
         List<LocalDate> sundays = startDate.datesUntil(endDate.plusDays(1))

@@ -27,7 +27,8 @@ public record MemberDto(
     String username, // NEW
     LocalDate registeredDate, // Added for frontend convenience (mapped from createdAt)
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    Double attendanceRate // ADDED
 ) {
     @Builder
     public record CellInfo(
@@ -36,6 +37,10 @@ public record MemberDto(
     ) {}
 
     public static MemberDto from(Member entity) {
+        return from(entity, null);
+    }
+
+    public static MemberDto from(Member entity, Double attendanceRate) {
         CellInfo cellInfo = (entity.getCell() != null)
             ? new CellInfo(entity.getCell().getId(), entity.getCell().getName())
             : null;
@@ -67,6 +72,7 @@ public record MemberDto(
             .registeredDate(entity.getCreatedAt() != null ? entity.getCreatedAt().toLocalDate() : null)
             .createdAt(entity.getCreatedAt())
             .updatedAt(entity.getUpdatedAt())
+            .attendanceRate(attendanceRate)
             .build();
     }
 }

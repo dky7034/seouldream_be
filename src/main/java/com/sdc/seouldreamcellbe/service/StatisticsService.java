@@ -331,7 +331,8 @@ public class StatisticsService {
                 }
                 
                 // 3. Calculate Total Possible (All Sundays in Period)
-                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStart, periodEnd);
+                LocalDate calculationEndDate = periodEnd.isAfter(LocalDate.now()) ? LocalDate.now() : periodEnd;
+                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStart, calculationEndDate);
                 
                 // Get relevant members for this trend calculation
                 List<Member> targetMembers;
@@ -442,7 +443,8 @@ public class StatisticsService {
             .count();
 
         // NEW: Calculate strict denominator (totalPossible)
-        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         List<Member> targetMembers;
         if (memberId != null) {
             targetMembers = memberRepository.findById(memberId).map(List::of).orElse(Collections.emptyList());

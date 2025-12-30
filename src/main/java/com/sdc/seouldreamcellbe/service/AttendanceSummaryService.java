@@ -64,6 +64,11 @@ public class AttendanceSummaryService {
 
         List<MemberAlertDto> alerts = new ArrayList<>();
         LocalDate effectiveEndDate = (endDate != null) ? endDate : LocalDate.now();
+        
+        // Prevent checking future dates
+        if (effectiveEndDate.isAfter(LocalDate.now())) {
+            effectiveEndDate = LocalDate.now();
+        }
 
         for (Member member : membersToCheck) {
             List<Attendance> attendances = attendanceRepository.findByMemberIdAndDateLessThanEqualOrderByDateDesc(member.getId(), effectiveEndDate);
@@ -175,7 +180,8 @@ public class AttendanceSummaryService {
                 // NEW: Calculate accurate denominator based on ALL Sundays in the period, not just reported ones
                 LocalDate periodStartDate = getPeriodStartDate(dateGroup, groupBy);
                 LocalDate periodEndDate = getPeriodEndDate(dateGroup, groupBy);
-                List<LocalDate> allSundaysInPeriod = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStartDate, periodEndDate);
+                LocalDate calculationEndDate = periodEndDate.isAfter(LocalDate.now()) ? LocalDate.now() : periodEndDate;
+                List<LocalDate> allSundaysInPeriod = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStartDate, calculationEndDate);
                 
                 long totalPossible = calculatePossibleAttendance(allSundaysInPeriod, allActiveMembers);
 
@@ -216,7 +222,8 @@ public class AttendanceSummaryService {
             .count();
         
         // NEW: Calculate accurate denominator for total summary based on ALL Sundays in the range
-        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossibleAll = calculatePossibleAttendance(allSundaysInPeriodAll, allActiveMembers);
         
         double overallAttendanceRate = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) * 100.0 : 0.0;
@@ -317,7 +324,8 @@ public class AttendanceSummaryService {
                 // NEW: Calculate accurate denominator based on ALL Sundays in the period
                 LocalDate periodStartDate = getPeriodStartDate(dateGroup, groupBy);
                 LocalDate periodEndDate = getPeriodEndDate(dateGroup, groupBy);
-                List<LocalDate> allSundaysInPeriod = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStartDate, periodEndDate);
+                LocalDate calculationEndDate = periodEndDate.isAfter(LocalDate.now()) ? LocalDate.now() : periodEndDate;
+                List<LocalDate> allSundaysInPeriod = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStartDate, calculationEndDate);
                 
                 long totalPossible = calculatePossibleAttendance(allSundaysInPeriod, activeMembersInCell);
 
@@ -358,7 +366,8 @@ public class AttendanceSummaryService {
             .count();
         
         // NEW: Calculate accurate denominator for total summary based on ALL Sundays
-        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossibleAll = calculatePossibleAttendance(allSundaysInPeriodAll, activeMembersInCell);
 
         double overallAttendanceRate = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) * 100.0 : 0.0;
@@ -491,7 +500,8 @@ public class AttendanceSummaryService {
             .count();
 
         // 분모: 기간 내 전체 주일(일요일) 수 계산 (가입일/배정일 고려)
-        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+        List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossible = calculatePossibleAttendance(allSundaysInPeriodAll, List.of(member));
 
         double overallAttendanceRate = (totalPossible > 0) ? ((double) totalPresentAll / totalPossible) * 100.0 : 0.0;
@@ -610,7 +620,8 @@ public class AttendanceSummaryService {
             .count();
 
         // Calculate total possible Sundays in the requested range
-        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, endDate);
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossible = calculatePossibleAttendance(allSundays, List.of(member));
 
         // Use totalPossible as denominator
@@ -660,7 +671,8 @@ public class AttendanceSummaryService {
             .collect(Collectors.toList());
         
         // Use all Sundays in the range for the denominator to ensure consistent average calculation
-        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, finalEndDate);
+        LocalDate calculationEndDate = finalEndDate.isAfter(LocalDate.now()) ? LocalDate.now() : finalEndDate;
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, calculationEndDate);
         long totalPossible = calculatePossibleAttendance(allSundays, activeMembersInCell);
 
         // Count distinct weekly attendance for each member
@@ -723,7 +735,8 @@ public class AttendanceSummaryService {
         Map<Long, List<Attendance>> attendancesByMember = attendances.stream()
             .collect(Collectors.groupingBy(att -> att.getMember().getId()));
 
-        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, finalEndDate);
+        LocalDate calculationEndDate = finalEndDate.isAfter(LocalDate.now()) ? LocalDate.now() : finalEndDate;
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, calculationEndDate);
 
         return activeMembers.stream()
             .map(member -> {
@@ -791,6 +804,38 @@ public class AttendanceSummaryService {
             .startDate(startDate)
             .endDate(endDate)
             .build();
+    }
+
+    public Map<Long, Double> getAttendanceRates(List<Member> members, LocalDate startDate, LocalDate endDate) {
+        if (members.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Long> memberIds = members.stream().map(Member::getId).collect(Collectors.toList());
+        List<Attendance> attendances = attendanceRepository.findByMember_IdInAndDateBetween(memberIds, startDate, endDate);
+
+        Map<Long, List<Attendance>> attendancesByMember = attendances.stream()
+            .collect(Collectors.groupingBy(att -> att.getMember().getId()));
+
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
+
+        return members.stream().collect(Collectors.toMap(
+            Member::getId,
+            member -> {
+                List<Attendance> memberAttendances = attendancesByMember.getOrDefault(member.getId(), Collections.emptyList());
+                long presentCount = memberAttendances.stream()
+                    .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+                    .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
+                    .distinct()
+                    .count();
+
+                long totalDays = calculatePossibleAttendance(allSundays, List.of(member));
+
+                double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
+                return Math.round(attendanceRate * 100.0) / 100.0;
+            }
+        ));
     }
 
     private long calculatePossibleAttendance(List<LocalDate> meetingDates, List<Member> members) {

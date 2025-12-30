@@ -38,6 +38,9 @@ public class MemberService {
     private final TeamRepository teamRepository;
     private final MemberTeamRepository memberTeamRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ActiveSemesterService activeSemesterService;
+    private final AttendanceSummaryService attendanceSummaryService;
+    private final com.sdc.seouldreamcellbe.security.CurrentUserFinder currentUserFinder;
 
     public List<Integer> getAvailableJoinYears() {
         return memberRepository.findDistinctJoinYears();
@@ -106,15 +109,38 @@ public class MemberService {
     public MemberDto getMemberById(Long memberId) {
         Member member = memberRepository.findByIdWithUser(memberId)
             .orElseThrow(() -> new NotFoundException("멤버를 찾을 수 없습니다. ID: " + memberId));
-        return MemberDto.from(member);
+
+        User currentUser = currentUserFinder.getCurrentUser();
+        Double attendanceRate = null;
+
+        // Only EXECUTIVE can see attendance rate
+        if (currentUser.getRole() == Role.EXECUTIVE) {
+            LocalDate startDate, endDate;
+            try {
+                com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
+                startDate = activeSemester.getStartDate();
+                endDate = activeSemester.getEndDate();
+            } catch (NotFoundException e) {
+                endDate = LocalDate.now();
+                startDate = endDate.minusMonths(6);
+            }
+            java.util.Map<Long, Double> ratesMap = attendanceSummaryService.getAttendanceRates(List.of(member), startDate, endDate);
+            attendanceRate = ratesMap.getOrDefault(memberId, 0.0);
+        }
+
+        return MemberDto.from(member, attendanceRate);
     }
 
     public Page<MemberDto> getAllMembers(String name, Integer joinYear, Gender gender, Role role, Boolean unassigned, Long cellId, Integer month, List<Role> excludeRoles, Pageable pageable) {
-
-        Pageable finalPageable = pageable;
-        // If filtering by month and no specific sort is provided, default sort by birthDate
-        if (month != null && !pageable.getSort().isSorted()) {
-            finalPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("birthDate").ascending());
+        // 1. Determine Date Range (Active Semester or Fallback)
+        LocalDate startDate, endDate;
+        try {
+            com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
+            startDate = activeSemester.getStartDate();
+            endDate = activeSemester.getEndDate();
+        } catch (NotFoundException e) {
+            endDate = LocalDate.now();
+            startDate = endDate.minusMonths(6);
         }
 
         Specification<Member> spec = MemberSpecification.hasName(name)
@@ -126,8 +152,72 @@ public class MemberService {
             .and(MemberSpecification.hasBirthMonth(month))
             .and(MemberSpecification.excludeRoles(excludeRoles));
 
-        Page<Member> memberPage = memberRepository.findAll(spec, finalPageable);
-        return memberPage.map(MemberDto::from);
+        // 2. Check Permissions
+        User currentUser = currentUserFinder.getCurrentUser();
+        boolean canViewAttendanceRate = currentUser.getRole() == Role.EXECUTIVE;
+
+        // 3. Check for "attendanceRate" sort
+        boolean sortByAttendance = pageable.getSort().stream()
+            .anyMatch(order -> "attendanceRate".equals(order.getProperty()));
+
+        if (sortByAttendance) {
+            if (!canViewAttendanceRate) {
+                throw new org.springframework.security.access.AccessDeniedException("출석률 정렬 권한이 없습니다.");
+            }
+
+            // Case A: Custom Sorting (Fetch All -> Calculate -> Sort -> Paginate)
+            List<Member> allMembers = memberRepository.findAll(spec);
+            
+            // Calculate rates for ALL members
+            java.util.Map<Long, Double> ratesMap = attendanceSummaryService.getAttendanceRates(allMembers, startDate, endDate);
+
+            // Convert to DTOs with rate
+            List<MemberDto> allDtos = allMembers.stream()
+                .map(m -> MemberDto.from(m, ratesMap.getOrDefault(m.getId(), 0.0)))
+                .collect(Collectors.toList());
+
+            // Sort
+            Sort.Order sortOrder = pageable.getSort().getOrderFor("attendanceRate");
+            if (sortOrder != null && sortOrder.isAscending()) {
+                allDtos.sort(java.util.Comparator.comparing(MemberDto::attendanceRate));
+            } else {
+                allDtos.sort(java.util.Comparator.comparing(MemberDto::attendanceRate).reversed());
+            }
+
+            // Paginate
+            int start = (int) pageable.getOffset();
+            int end = Math.min((start + pageable.getPageSize()), allDtos.size());
+            
+            List<MemberDto> pagedDtos;
+            if (start > allDtos.size()) {
+                pagedDtos = new ArrayList<>();
+            } else {
+                pagedDtos = allDtos.subList(start, end);
+            }
+
+            return new org.springframework.data.domain.PageImpl<>(pagedDtos, pageable, allDtos.size());
+
+        } else {
+            // Case B: Standard DB Sorting/Pagination
+            Pageable finalPageable = pageable;
+            // If filtering by month and no specific sort is provided, default sort by birthDate
+            if (month != null && !pageable.getSort().isSorted()) {
+                finalPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("birthDate").ascending());
+            }
+
+            Page<Member> memberPage = memberRepository.findAll(spec, finalPageable);
+            
+            // Calculate rates only for the CURRENT PAGE members AND if user is authorized
+            Double defaultRate = null;
+            java.util.Map<Long, Double> ratesMap = null;
+            
+            if (canViewAttendanceRate) {
+                ratesMap = attendanceSummaryService.getAttendanceRates(memberPage.getContent(), startDate, endDate);
+            }
+
+            java.util.Map<Long, Double> finalRatesMap = ratesMap;
+            return memberPage.map(m -> MemberDto.from(m, (finalRatesMap != null) ? finalRatesMap.getOrDefault(m.getId(), 0.0) : null));
+        }
     }
 
     @Transactional

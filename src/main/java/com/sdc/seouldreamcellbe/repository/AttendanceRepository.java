@@ -86,6 +86,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
     @Query("SELECT a FROM Attendance a JOIN FETCH a.member WHERE a.member.id IN :memberIds ORDER BY a.date DESC")
     List<Attendance> findByMember_IdInOrderByDateDesc(@Param("memberIds") List<Long> memberIds);
 
+    List<Attendance> findByMember_IdInAndDateBetween(List<Long> memberIds, LocalDate startDate, LocalDate endDate);
+
     // --- Statistics Queries ---
 
     @Query("SELECT AVG(dailyCount) FROM (SELECT COUNT(DISTINCT a.member.id) as dailyCount " +
