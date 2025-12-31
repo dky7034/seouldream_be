@@ -12,9 +12,15 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - APP_JWT_SECRET=${APP_JWT_SECRET}
+      - TZ=Asia/Seoul  # ✅ 한국 시간 설정
     networks:
       - seouldream-net
     restart: always
+    logging: # ✅ 로그 용량 제한 추가
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:alpine
@@ -22,6 +28,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - TZ=Asia/Seoul # ✅ 한국 시간 설정
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
@@ -32,6 +40,11 @@ services:
       - app
     networks:
       - seouldream-net
+    logging: # ✅ 로그 용량 제한 추가
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   certbot:
     image: certbot/certbot
@@ -45,10 +58,11 @@ services:
     image: mysql:8.0
     container_name: seouldream-db
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306" # ✅ 중요! 외부 접속 완전 차단 (SSH 터널링은 가능)
     environment:
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - TZ=Asia/Seoul # ✅ 한국 시간 설정
     volumes:
       - db_data:/var/lib/mysql
     networks:
@@ -60,6 +74,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: # ✅ 로그 용량 제한 추가
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   seouldream-net:
