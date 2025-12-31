@@ -131,17 +131,12 @@ public class MemberService {
         return MemberDto.from(member, attendanceRate);
     }
 
-    public Page<MemberDto> getAllMembers(String name, Integer joinYear, Gender gender, Role role, Boolean unassigned, Long cellId, Integer month, List<Role> excludeRoles, Pageable pageable) {
-        // 1. Determine Date Range (Active Semester or Fallback)
-        LocalDate startDate, endDate;
-        try {
-            com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
-            startDate = activeSemester.getStartDate();
-            endDate = activeSemester.getEndDate();
-        } catch (NotFoundException e) {
-            endDate = LocalDate.now();
-            startDate = endDate.minusMonths(6);
-        }
+    public Page<MemberDto> getAllMembers(String name, Integer joinYear, Gender gender, Role role, Boolean unassigned, Long cellId, Integer month, Integer statYear, List<Role> excludeRoles, Pageable pageable) {
+        // 1. Determine Date Range (Yearly Stats)
+        // If statYear is provided, use it. Otherwise, use current year.
+        int targetYear = (statYear != null) ? statYear : LocalDate.now().getYear();
+        LocalDate startDate = LocalDate.of(targetYear, 1, 1);
+        LocalDate endDate = LocalDate.of(targetYear, 12, 31);
 
         Specification<Member> spec = MemberSpecification.hasName(name)
             .and(MemberSpecification.hasJoinYear(joinYear))

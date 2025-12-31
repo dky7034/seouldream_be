@@ -219,59 +219,15 @@ public class CellService {
             // 1. Fetch ALL matching cells (unpaged)
             List<Cell> allCells = cellRepository.findAll(Specification.allOf(specifications));
 
-            // 2. Calculate rates for ALL cells
-            List<CellDto> allCellDtos;
-            if (startDate != null && endDate != null && !allCells.isEmpty()) {
-                List<Long> cellIds = allCells.stream().map(Cell::getId).collect(Collectors.toList());
-                
-                List<Member> allActiveMembersInCells = memberRepository.findByCell_IdInAndRoleInAndActive(
-                    cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
-                );
-                Set<Long> activeMemberIds = allActiveMembersInCells.stream().map(Member::getId).collect(Collectors.toSet());
+            // 2. Calculate rates for ALL cells using the service
+            Map<Long, Double> ratesMap = attendanceSummaryService.getCellAttendanceRates(allCells, startDate, endDate);
 
-                // Fetch attendances and filter by active members
-                List<Attendance> attendances = attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate).stream()
-                    .filter(att -> att.getMember().getCell() != null && cellIds.contains(att.getMember().getCell().getId()))
-                    .filter(att -> activeMemberIds.contains(att.getMember().getId()))
-                    .collect(Collectors.toList());
-
-                Map<Long, Long> presentCounts = attendances.stream()
-                    .filter(att -> att.getStatus() == com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT)
-                    .map(att -> new java.util.AbstractMap.SimpleEntry<>(
-                        att.getMember().getCell().getId(),
-                        att.getMember().getId() + "_" + att.getDate().get(java.time.temporal.IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
-                    ))
-                    .distinct()
-                    .collect(Collectors.groupingBy(java.util.Map.Entry::getKey, Collectors.counting()));
-
-                Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
-                
-                LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
-                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
-
-                Map<Long, Double> rates = cellIds.stream().collect(Collectors.toMap(
-                    id -> id,
-                    id -> {
-                        long present = presentCounts.getOrDefault(id, 0L);
-                        List<Member> members = membersByCellId.getOrDefault(id, Collections.emptyList());
-                        long possible = calculatePossibleAttendance(allSundays, members);
-                        double rate = (possible > 0) ? (double) present / possible * 100.0 : 0.0;
-                        if (rate > 100.0) rate = 100.0;
-                        return Math.round(rate * 100.0) / 100.0;
-                    }
-                ));
-
-                allCellDtos = allCells.stream()
-                    .map(cell -> {
-                        Double rate = rates.getOrDefault(cell.getId(), 0.0);
-                        return CellDto.from(cell, rate);
-                    })
-                    .collect(Collectors.toList());
-            } else {
-                allCellDtos = allCells.stream()
-                    .map(CellDto::from)
-                    .collect(Collectors.toList());
-            }
+            List<CellDto> allCellDtos = allCells.stream()
+                .map(cell -> {
+                    Double rate = ratesMap.getOrDefault(cell.getId(), 0.0);
+                    return CellDto.from(cell, rate);
+                })
+                .collect(Collectors.toList());
 
             // 3. Sort in memory
             Sort.Order rateOrder = pageable.getSort().getOrderFor("attendanceRate");
@@ -298,47 +254,11 @@ public class CellService {
             // Existing logic for DB pagination
             Page<Cell> cellPage = cellRepository.findAll(Specification.allOf(specifications), pageable);
 
-            if (startDate != null && endDate != null && !cellPage.isEmpty()) {
-                List<Long> cellIds = cellPage.getContent().stream().map(Cell::getId).collect(Collectors.toList());
-                
-                List<Member> allActiveMembersInCells = memberRepository.findByCell_IdInAndRoleInAndActive(
-                    cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
-                );
-                Set<Long> activeMemberIds = allActiveMembersInCells.stream().map(Member::getId).collect(Collectors.toSet());
-
-                List<Attendance> attendances = attendanceRepository.findByDateBetweenWithMemberAndCreatedBy(startDate, endDate).stream()
-                    .filter(att -> att.getMember().getCell() != null && cellIds.contains(att.getMember().getCell().getId()))
-                    .filter(att -> activeMemberIds.contains(att.getMember().getId()))
-                    .collect(Collectors.toList());
-
-                Map<Long, Long> presentCounts = attendances.stream()
-                    .filter(att -> att.getStatus() == com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT)
-                    .map(att -> new java.util.AbstractMap.SimpleEntry<>(
-                        att.getMember().getCell().getId(),
-                        att.getMember().getId() + "_" + att.getDate().get(java.time.temporal.IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
-                    ))
-                    .distinct()
-                    .collect(Collectors.groupingBy(java.util.Map.Entry::getKey, Collectors.counting()));
-
-                Map<Long, List<Member>> membersByCellId = allActiveMembersInCells.stream().collect(Collectors.groupingBy(m -> m.getCell().getId()));
-                
-                LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
-                List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
-
-                Map<Long, Double> rates = cellIds.stream().collect(Collectors.toMap(
-                    id -> id,
-                    id -> {
-                        long present = presentCounts.getOrDefault(id, 0L);
-                        List<Member> members = membersByCellId.getOrDefault(id, Collections.emptyList());
-                        long possible = calculatePossibleAttendance(allSundays, members);
-                        double rate = (possible > 0) ? (double) present / possible * 100.0 : 0.0;
-                        if (rate > 100.0) rate = 100.0;
-                        return Math.round(rate * 100.0) / 100.0;
-                    }
-                ));
-
+            // Calculate rates for the CURRENT PAGE of cells
+            if (!cellPage.isEmpty()) {
+                Map<Long, Double> ratesMap = attendanceSummaryService.getCellAttendanceRates(cellPage.getContent(), startDate, endDate);
                 return cellPage.map(cell -> {
-                    Double rate = rates.getOrDefault(cell.getId(), 0.0);
+                    Double rate = ratesMap.getOrDefault(cell.getId(), 0.0);
                     return CellDto.from(cell, rate);
                 });
             }
@@ -467,21 +387,5 @@ public class CellService {
             })
             .sorted(Comparator.comparing(CellMemberAttendanceSummaryDto::memberName))
             .collect(Collectors.toList());
-    }
-
-    private long calculatePossibleAttendance(List<LocalDate> meetingDates, List<Member> members) {
-        long count = 0;
-        for (LocalDate date : meetingDates) {
-            for (Member member : members) {
-                LocalDate memberStartDate = member.getCellAssignmentDate();
-                if (memberStartDate == null) {
-                    memberStartDate = (member.getCreatedAt() != null) ? member.getCreatedAt().toLocalDate() : LocalDate.MIN;
-                }
-                if (!memberStartDate.isAfter(date)) {
-                    count++;
-                }
-            }
-        }
-        return count;
     }
 }

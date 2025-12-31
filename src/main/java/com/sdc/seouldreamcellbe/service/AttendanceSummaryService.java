@@ -263,9 +263,13 @@ public class AttendanceSummaryService {
         List<Member> activeMembersInCell = memberRepository.findByCell_IdAndRoleInAndActive(cellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
         Set<Long> activeMemberIds = activeMembersInCell.stream().map(Member::getId).collect(Collectors.toSet());
 
-        // Filter attendances to include only active members
+        // Filter attendances to include only active members AND respect assignment date
         attendances = attendances.stream()
             .filter(att -> activeMemberIds.contains(att.getMember().getId()))
+            .filter(att -> {
+                LocalDate effectiveStart = getMemberEffectiveStartDate(att.getMember());
+                return !att.getDate().isBefore(effectiveStart);
+            })
             .collect(Collectors.toList());
 
         Map<String, List<Attendance>> groupedAttendances;
@@ -400,6 +404,12 @@ public class AttendanceSummaryService {
             .orElseThrow(() -> new NotFoundException("멤버를 찾을 수 없습니다. ID: " + memberId));
 
         List<Attendance> attendances = attendanceRepository.findByMember_IdAndDateBetweenWithMemberAndCreatedBy(memberId, startDate, endDate);
+
+        // Filter attendances based on effective start date
+        LocalDate effectiveStart = getMemberEffectiveStartDate(member);
+        attendances = attendances.stream()
+            .filter(att -> !att.getDate().isBefore(effectiveStart))
+            .collect(Collectors.toList());
 
         Map<String, List<Attendance>> groupedAttendances;
 
@@ -600,10 +610,12 @@ public class AttendanceSummaryService {
         Member member = memberRepository.findById(memberId)
             .orElseThrow(() -> new NotFoundException("멤버를 찾을 수 없습니다. ID: " + memberId));
 
-        // Determine the effective start date for calculation, considering member's join date
+        // Determine effective start date for querying (optimization)
         LocalDate effectiveStartDate = startDate;
-        if (member.getCreatedAt() != null && member.getCreatedAt().toLocalDate().isAfter(startDate)) {
-            effectiveStartDate = member.getCreatedAt().toLocalDate();
+        LocalDate memberReferenceDate = getMemberEffectiveStartDate(member);
+        
+        if (memberReferenceDate.isAfter(startDate)) {
+            effectiveStartDate = memberReferenceDate;
         }
 
         List<Attendance> attendances = attendanceRepository.findByMember_IdAndDateBetweenWithMemberAndCreatedBy(memberId, effectiveStartDate, endDate);
@@ -665,9 +677,13 @@ public class AttendanceSummaryService {
         List<Member> activeMembersInCell = memberRepository.findByCell_IdAndRoleInAndActive(cellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
         Set<Long> activeMemberIds = activeMembersInCell.stream().map(Member::getId).collect(Collectors.toSet());
 
-        // Filter attendances to include only active members
+        // Filter attendances to include only active members AND respect assignment date
         List<Attendance> filteredAttendances = attendances.stream()
             .filter(att -> activeMemberIds.contains(att.getMember().getId()))
+            .filter(att -> {
+                LocalDate effectiveStart = getMemberEffectiveStartDate(att.getMember());
+                return !att.getDate().isBefore(effectiveStart);
+            })
             .collect(Collectors.toList());
         
         // Use all Sundays in the range for the denominator to ensure consistent average calculation
@@ -740,14 +756,17 @@ public class AttendanceSummaryService {
 
         return activeMembers.stream()
             .map(member -> {
+                final LocalDate effectiveStart = getMemberEffectiveStartDate(member);
                 List<Attendance> memberAttendances = attendancesByMember.getOrDefault(member.getId(), Collections.emptyList());
 
                 long presentCount = memberAttendances.stream()
+                    .filter(att -> !att.getDate().isBefore(effectiveStart)) // Filter by effective start
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
                     .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
                 long absentCount = memberAttendances.stream()
+                    .filter(att -> !att.getDate().isBefore(effectiveStart)) // Filter by effective start
                     .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
                     .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
@@ -823,8 +842,11 @@ public class AttendanceSummaryService {
         return members.stream().collect(Collectors.toMap(
             Member::getId,
             member -> {
+                LocalDate effectiveStartDate = getMemberEffectiveStartDate(member);
+
                 List<Attendance> memberAttendances = attendancesByMember.getOrDefault(member.getId(), Collections.emptyList());
                 long presentCount = memberAttendances.stream()
+                    .filter(att -> !att.getDate().isBefore(effectiveStartDate)) // Filter out records before assignment
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
                     .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
@@ -838,19 +860,92 @@ public class AttendanceSummaryService {
         ));
     }
 
+    public Map<Long, Double> getCellAttendanceRates(List<Cell> cells, LocalDate startDate, LocalDate endDate) {
+        if (cells.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        
+        // If no date range is specified, default to the active semester
+        if (startDate == null && endDate == null) {
+            com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
+            startDate = activeSemester.getStartDate();
+            endDate = activeSemester.getEndDate();
+        }
+        final LocalDate finalStartDate = startDate;
+        final LocalDate finalEndDate = endDate;
+
+        List<Long> cellIds = cells.stream().map(Cell::getId).collect(Collectors.toList());
+
+        // 1. Fetch active members for all cells (Role MEMBER or CELL_LEADER)
+        List<Member> allActiveMembers = memberRepository.findByCell_IdInAndRoleInAndActive(
+            cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
+        );
+        
+        if (allActiveMembers.isEmpty()) {
+            return cells.stream().collect(Collectors.toMap(Cell::getId, c -> 0.0));
+        }
+
+        List<Long> memberIds = allActiveMembers.stream().map(Member::getId).collect(Collectors.toList());
+
+        // 2. Fetch attendances for these members in the date range
+        List<Attendance> attendances = attendanceRepository.findByMember_IdInAndDateBetween(memberIds, finalStartDate, finalEndDate);
+
+        // 3. Prepare calculation helpers
+        LocalDate calculationEndDate = finalEndDate.isAfter(LocalDate.now()) ? LocalDate.now() : finalEndDate;
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, calculationEndDate);
+        
+        Map<Long, List<Member>> membersByCellId = allActiveMembers.stream()
+            .collect(Collectors.groupingBy(m -> m.getCell().getId()));
+            
+        Map<Long, List<Attendance>> attendancesByCellId = attendances.stream()
+            .filter(att -> att.getMember().getCell() != null)
+            .collect(Collectors.groupingBy(att -> att.getMember().getCell().getId()));
+
+        // 4. Calculate rate per cell
+        return cells.stream().collect(Collectors.toMap(
+            Cell::getId,
+            cell -> {
+                List<Member> members = membersByCellId.getOrDefault(cell.getId(), Collections.emptyList());
+                List<Attendance> cellAttendances = attendancesByCellId.getOrDefault(cell.getId(), Collections.emptyList());
+                
+                // Filter attendances: check assignment date for each member
+                long presentCount = cellAttendances.stream()
+                    .filter(att -> {
+                        LocalDate effectiveStart = getMemberEffectiveStartDate(att.getMember());
+                        return !att.getDate().isBefore(effectiveStart);
+                    })
+                    .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
+                    .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
+                    .distinct()
+                    .count();
+                
+                long totalPossible = calculatePossibleAttendance(allSundays, members);
+                
+                double rate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
+                rate = Math.round(rate * 100.0) / 100.0;
+                return Math.min(rate, 100.0);
+            }
+        ));
+    }
+
     private long calculatePossibleAttendance(List<LocalDate> meetingDates, List<Member> members) {
         long count = 0;
         for (LocalDate date : meetingDates) {
             for (Member member : members) {
-                LocalDate memberStartDate = member.getCellAssignmentDate();
-                if (memberStartDate == null) {
-                    memberStartDate = (member.getCreatedAt() != null) ? member.getCreatedAt().toLocalDate() : LocalDate.MIN;
-                }
+                LocalDate memberStartDate = getMemberEffectiveStartDate(member);
                 if (!memberStartDate.isAfter(date)) {
                     count++;
                 }
             }
         }
         return count;
+    }
+    
+    private LocalDate getMemberEffectiveStartDate(Member member) {
+        LocalDate date = member.getCellAssignmentDate();
+        if (date == null) {
+            date = (member.getCreatedAt() != null) ? member.getCreatedAt().toLocalDate() : LocalDate.MIN;
+        }
+        return date;
     }
 }
