@@ -27,7 +27,8 @@ public enum ErrorCode {
 
     // Semester
     NO_ACTIVE_SEMESTER(HttpStatus.NOT_FOUND, "S001", "현재 활성화된 학기가 없습니다."),
-    MULTIPLE_ACTIVE_SEMESTERS(HttpStatus.CONFLICT, "S002", "활성화된 학기가 2개 이상입니다. 관리자에게 문의하세요.");
+    MULTIPLE_ACTIVE_SEMESTERS(HttpStatus.CONFLICT, "S002", "활성화된 학기가 2개 이상입니다. 관리자에게 문의하세요."),
+    INACTIVE_SEMESTER_ACCESS(HttpStatus.FORBIDDEN, "ACCESS_001", "행정이 마감되어 조회할 수 없는 기간입니다.");
 
 
     private final HttpStatus status;

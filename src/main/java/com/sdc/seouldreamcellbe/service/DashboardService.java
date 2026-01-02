@@ -16,6 +16,8 @@ import com.sdc.seouldreamcellbe.dto.dashboard.DashboardDto;
 import com.sdc.seouldreamcellbe.dto.dashboard.DashboardDto.BirthdayInfo;
 import com.sdc.seouldreamcellbe.dto.dashboard.DashboardDto.RecentNoticeInfo;
 import com.sdc.seouldreamcellbe.dto.dashboard.DashboardDto.RecentPrayerInfo;
+import com.sdc.seouldreamcellbe.exception.BusinessException;
+import com.sdc.seouldreamcellbe.exception.ErrorCode;
 import com.sdc.seouldreamcellbe.exception.NotFoundException;
 import com.sdc.seouldreamcellbe.repository.CellRepository;
 import com.sdc.seouldreamcellbe.repository.MemberRepository;
@@ -49,6 +51,7 @@ public class DashboardService {
     private final AttendanceSummaryService attendanceSummaryService;
     private final CellRepository cellRepository;
     private final CellService cellService; // Injected
+    private final ActiveSemesterService activeSemesterService;
 
     public DashboardDto getDashboard(String username, String period, LocalDate startDateParam, LocalDate endDateParam) {
         User user = userRepository.findWithMemberAndCellByUsername(username)
@@ -271,6 +274,15 @@ public class DashboardService {
             return DashboardDto.empty(); // Return empty dashboard if no cell assigned
         }
         Long cellId = user.getMember().getCell().getId();
+
+        // Security Check: Allow if Current Year OR Active Semester
+        int currentYear = LocalDate.now().getYear();
+        boolean isCurrentYear = (startDate.getYear() == currentYear || endDate.getYear() == currentYear);
+        boolean isActiveSemester = activeSemesterService.isDateRangeInActiveSemester(startDate, endDate);
+
+        if (!isCurrentYear && !isActiveSemester) {
+            throw new BusinessException(ErrorCode.INACTIVE_SEMESTER_ACCESS);
+        }
 
         // --- Birthday Infos (Cell Members Only) ---
         List<Member> todayBirthdayMembers = memberRepository.findByCell_IdAndBirthMonthAndDay(cellId, LocalDate.now().getMonthValue(), LocalDate.now().getDayOfMonth());
