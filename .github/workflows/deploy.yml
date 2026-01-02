@@ -8,6 +8,7 @@ permissions:
   contents: read
 
 jobs:
+  # [JOB 1] 빌드 작업
   build:
     runs-on: ubuntu-latest
     steps:
@@ -24,63 +25,57 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew clean build --exclude-task test
 
-      # 빌드된 결과물(jar)을 다음 job인 deploy로 넘겨주기 위해 임시 저장
+      # 💡 중요: SCP 전송 시 app.jar란 이름을 쓰시려면 파일명을 여기서 맞춰주는 게 안전합니다.
+      # (Gradle 설정에서 파일명을 지정하지 않았다면 기본적으로 버전명이 붙습니다)
+      - name: Rename built jar to app.jar
+        run: mv build/libs/*SNAPSHOT.jar build/libs/app.jar
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: spring-app
-          path: build/libs/*.jar
+          path: build/libs/app.jar  # 변경된 이름으로 업로드
 
-    # deploy.yml 의 deploy job 부분 수정
+  # [JOB 2] 배포 작업 (build와 같은 레벨이어야 함)
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: spring-app
+          path: build/libs
 
-    deploy:
-      needs: build
-      runs-on: ubuntu-latest
-      steps:
-        - name: Download build artifact
-          uses: actions/download-artifact@v4
-          with:
-            name: spring-app
-            path: build/libs
+      # 1. 파일 전송
+      - name: Transfer Jar to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_KEY }}
+          source: "build/libs/app.jar"
+          target: "/home/ubuntu/seouldream_be/temp"
+          strip_components: 2
 
-        # 1. 파일 전송 (이제 *.jar 대신 app.jar를 명시)
-        - name: Transfer Jar to Server
-          uses: appleboy/scp-action@v0.1.7
-          with:
-            host: ${{ secrets.EC2_HOST }}
-            username: ${{ secrets.EC2_USERNAME }}
-            key: ${{ secrets.EC2_KEY }}
-            source: "build/libs/app.jar"  # 👈 명확하게 지정!
-            target: "/home/ubuntu/seouldream_be/temp"
-            strip_components: 2
+      # 2. 배포 스크립트 실행
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            set -e
+            cd /home/ubuntu/seouldream_be
+            
+            # temp 폴더에서 꺼내오기
+            mv temp/app.jar app.jar
+            rm -rf temp
 
-        # 2. 배포 스크립트 실행
-        - name: Deploy to Server
-          uses: appleboy/ssh-action@v1.0.3
-          with:
-            host: ${{ secrets.EC2_HOST }}
-            username: ${{ secrets.EC2_USERNAME }}
-            key: ${{ secrets.EC2_KEY }}
-            script: |
-              # 에러 발생 시 즉시 중단 (매우 중요!)
-              set -e
+            sudo docker-compose down
+            sudo docker rmi seouldream_be_app || true
+            sudo docker-compose up -d --build
+            sudo docker image prune -f
 
-              cd /home/ubuntu/seouldream_be
-
-              # 파일 교체 (이제 파일이 1개니 에러 안 남)
-              mv temp/app.jar app.jar
-              rm -rf temp
-
-              # 기존 컨테이너 내리기
-              sudo docker-compose down
-
-              # (선택) 기존 이미지 삭제 (용량 확보)
-              sudo docker rmi seouldream_be_app || true
-
-              # 다시 빌드 및 실행
-              sudo docker-compose up -d --build
-
-              # 불필요한 이미지 정리
-              sudo docker image prune -f
-
-              echo "Backend deployed successfully!"
+            echo "Backend deployed successfully!"
