@@ -23,20 +23,18 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
+        # test 제외하고 빌드 (빠른 배포용)
         run: ./gradlew clean build --exclude-task test
 
-      # 💡 중요: SCP 전송 시 app.jar란 이름을 쓰시려면 파일명을 여기서 맞춰주는 게 안전합니다.
-      # (Gradle 설정에서 파일명을 지정하지 않았다면 기본적으로 버전명이 붙습니다)
-      - name: Rename built jar to app.jar
-        run: mv build/libs/*SNAPSHOT.jar build/libs/app.jar
+      # 🚨 중요: Gradle에서 이미 app.jar로 만들었으므로 이름 변경(mv) 단계 삭제됨
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: spring-app
-          path: build/libs/app.jar  # 변경된 이름으로 업로드
+          path: build/libs/app.jar  # Gradle 설정 덕분에 바로 이 경로에 파일이 있습니다.
 
-  # [JOB 2] 배포 작업 (build와 같은 레벨이어야 함)
+  # [JOB 2] 배포 작업
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -66,16 +64,25 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_KEY }}
           script: |
+            # 에러 발생 시 즉시 중단
             set -e
+
             cd /home/ubuntu/seouldream_be
             
-            # temp 폴더에서 꺼내오기
+            # temp 폴더에서 파일 꺼내오기
             mv temp/app.jar app.jar
             rm -rf temp
 
+            # 기존 컨테이너 내리기
             sudo docker-compose down
+
+            # (선택) 기존 이미지 삭제하여 공간 확보
             sudo docker rmi seouldream_be_app || true
+
+            # 다시 빌드 및 실행
             sudo docker-compose up -d --build
+
+            # 불필요한 이미지 정리 (dangling images)
             sudo docker image prune -f
 
             echo "Backend deployed successfully!"
