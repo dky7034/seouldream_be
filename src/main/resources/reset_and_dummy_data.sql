@@ -12,7 +12,7 @@ TRUNCATE TABLE semesters;
 TRUNCATE TABLE suggestions;
 TRUNCATE TABLE suggestion_status_history;
 SET FOREIGN_KEY_CHECKS = 1;
-
+--
 -- 1. Semesters
 INSERT INTO semesters (id, name, start_date, end_date, is_active) VALUES
 (1, '2025 상반기', '2025-01-01', '2025-06-30', false),
