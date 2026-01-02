@@ -31,53 +31,56 @@ jobs:
           name: spring-app
           path: build/libs/*.jar
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest # 중요: 이제 깃허브 서버에서 실행됩니다!
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: spring-app
-          path: build/libs
+    # deploy.yml 의 deploy job 부분 수정
 
-      # 1. 빌드된 Jar 파일을 내 서버로 전송 (SCP)
-      - name: Transfer Jar to Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_KEY }}
-          source: "build/libs/*.jar"
-          target: "/home/ubuntu/seouldream_be/temp" # 임시 폴더에 먼저 전송
-          strip_components: 2 # build/libs 경로 제거하고 파일만 전송
+    deploy:
+      needs: build
+      runs-on: ubuntu-latest
+      steps:
+        - name: Download build artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: spring-app
+            path: build/libs
 
-      # 2. 서버에 접속해서 배포 스크립트 실행 (SSH)
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_KEY }}
-          script: |
-            # 작업 폴더로 이동
-            cd /home/ubuntu/seouldream_be
+        # 1. 파일 전송 (이제 *.jar 대신 app.jar를 명시)
+        - name: Transfer Jar to Server
+          uses: appleboy/scp-action@v0.1.7
+          with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USERNAME }}
+            key: ${{ secrets.EC2_KEY }}
+            source: "build/libs/app.jar"  # 👈 명확하게 지정!
+            target: "/home/ubuntu/seouldream_be/temp"
+            strip_components: 2
 
-            # 방금 전송받은 새 Jar 파일로 교체
-            mv temp/*.jar app.jar
-            rm -rf temp
+        # 2. 배포 스크립트 실행
+        - name: Deploy to Server
+          uses: appleboy/ssh-action@v1.0.3
+          with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USERNAME }}
+            key: ${{ secrets.EC2_KEY }}
+            script: |
+              # 에러 발생 시 즉시 중단 (매우 중요!)
+              set -e
 
-            # [안전한 재시작]
-            # docker-compose에 정의된 서비스만 우아하게 종료 (다른 컨테이너 영향 X)
-            sudo docker-compose down
+              cd /home/ubuntu/seouldream_be
 
-            # (선택) 기존 이미지 제거하여 공간 확보 및 캐시 문제 방지
-            sudo docker rmi seouldream_be_app || true
+              # 파일 교체 (이제 파일이 1개니 에러 안 남)
+              mv temp/app.jar app.jar
+              rm -rf temp
 
-            # 다시 실행 (Build 옵션을 줘서 Dockerfile 변경사항도 반영)
-            sudo docker-compose up -d --build
-            
-            # 불필요한 이미지 정리
-            sudo docker image prune -f
-            
-            echo "Backend deployed safely!"
+              # 기존 컨테이너 내리기
+              sudo docker-compose down
+
+              # (선택) 기존 이미지 삭제 (용량 확보)
+              sudo docker rmi seouldream_be_app || true
+
+              # 다시 빌드 및 실행
+              sudo docker-compose up -d --build
+
+              # 불필요한 이미지 정리
+              sudo docker image prune -f
+
+              echo "Backend deployed successfully!"

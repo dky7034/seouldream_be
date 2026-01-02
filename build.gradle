@@ -50,6 +50,7 @@ tasks.named('test') {
 
 bootJar {
     mainClass = 'com.sdc.seouldreamcellbe.SeouldreamcellBeApplication'
+    archiveFileName = 'app.jar'  // 👈 이 줄을 추가하세요!
 }
 
 // .env 파일의 변수들을 bootRun 시 시스템 속성으로 추가
