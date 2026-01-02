@@ -3,11 +3,7 @@ spring:
     active: local
   application:
     name: seouldreamcell-be
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/seouldream_cell?serverTimezone=Asia/Seoul
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+
   jpa:
     open-in-view: false
     hibernate:
