@@ -46,4 +46,27 @@ public class ActiveSemesterService {
         Semester activeSemester = getActiveSemester();
         return SemesterDto.from(activeSemester);
     }
+
+    /**
+     * 요청한 날짜 범위가 활성화된 학기 기간에 포함되는지 확인합니다.
+     *
+     * @param startDate 조회 시작일
+     * @param endDate 조회 종료일
+     * @return 포함 여부
+     */
+    public boolean isDateRangeInActiveSemester(java.time.LocalDate startDate, java.time.LocalDate endDate) {
+        if (startDate == null || endDate == null) return false;
+        
+        List<Semester> activeSemesters = semesterRepository.findByIsActive(true);
+        if (activeSemesters.isEmpty()) return false;
+        
+        // Check if the requested range overlaps with ANY active semester
+        for (Semester semester : activeSemesters) {
+             // Logic: Requested Start <= Semester End AND Requested End >= Semester Start
+             if (!startDate.isAfter(semester.getEndDate()) && !endDate.isBefore(semester.getStartDate())) {
+                 return true;
+             }
+        }
+        return false;
+    }
 }

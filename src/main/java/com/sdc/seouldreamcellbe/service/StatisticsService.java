@@ -205,12 +205,13 @@ public class StatisticsService {
                 }
                 effectiveCellId = currentUserCellId;
 
-                // Enforce current year restriction for Cell Leaders
-                if (currentUser.getRole() == Role.CELL_LEADER) {
-                    int currentYear = LocalDate.now().getYear();
-                    if (startDate.getYear() != currentYear || endDate.getYear() != currentYear) {
-                        throw new AccessDeniedException("셀장은 현재 연도의 데이터만 조회할 수 있습니다.");
-                    }
+                // Security Check: Allow if Current Year OR Active Semester
+                int currentYear = LocalDate.now().getYear();
+                boolean isCurrentYear = (startDate.getYear() == currentYear || endDate.getYear() == currentYear);
+                boolean isActiveSemester = activeSemesterService.isDateRangeInActiveSemester(startDate, endDate);
+
+                if (!isCurrentYear && !isActiveSemester) {
+                    throw new AccessDeniedException("셀장은 현재 연도 또는 활성화된 학기의 데이터만 조회할 수 있습니다.");
                 }
 
             } else if (cellId != null) {
@@ -408,10 +409,13 @@ public class StatisticsService {
             }
             effectiveCellId = currentUserCellId;
 
-            // Enforce current year restriction for Cell Leaders
+            // Security Check: Allow if Current Year OR Active Semester
             int currentYear = LocalDate.now().getYear();
-            if (startDate.getYear() != currentYear || endDate.getYear() != currentYear) {
-                throw new AccessDeniedException("셀장은 현재 연도의 데이터만 조회할 수 있습니다.");
+            boolean isCurrentYear = (startDate.getYear() == currentYear || endDate.getYear() == currentYear);
+            boolean isActiveSemester = activeSemesterService.isDateRangeInActiveSemester(startDate, endDate);
+
+            if (!isCurrentYear && !isActiveSemester) {
+                throw new AccessDeniedException("셀장은 현재 연도 또는 활성화된 학기의 데이터만 조회할 수 있습니다.");
             }
 
         } else if (currentUser.getRole() != Role.EXECUTIVE) {

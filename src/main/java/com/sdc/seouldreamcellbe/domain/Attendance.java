@@ -27,6 +27,11 @@ public class Attendance extends BaseTimeEntity {
     @JsonBackReference
     private Member member;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cell_id")
+    @JsonBackReference
+    private Cell cell;
+
     @Column(nullable = false)
     private LocalDate date;
 

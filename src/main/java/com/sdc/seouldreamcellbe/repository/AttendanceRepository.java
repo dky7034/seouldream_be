@@ -24,7 +24,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
 
     List<Attendance> findByDateBetween(LocalDate startDate, LocalDate endDate);
 
-    List<Attendance> findByMember_Cell_IdAndDateBetween(Long cellId, LocalDate startDate, LocalDate endDate);
+    List<Attendance> findByCell_IdAndDateBetween(Long cellId, LocalDate startDate, LocalDate endDate);
 
     List<Attendance> findByMember_IdAndDateBetween(Long memberId, LocalDate startDate, LocalDate endDate);
 
@@ -41,8 +41,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
     @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.createdBy LEFT JOIN FETCH a.member m LEFT JOIN FETCH m.user WHERE a.date BETWEEN :startDate AND :endDate")
     List<Attendance> findByDateBetweenWithMemberAndCreatedBy(LocalDate startDate, LocalDate endDate);
 
-    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.createdBy LEFT JOIN FETCH a.member m LEFT JOIN FETCH m.user WHERE a.member.cell.id = :cellId AND a.date BETWEEN :startDate AND :endDate")
-    List<Attendance> findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(Long cellId, LocalDate startDate, LocalDate endDate);
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.createdBy LEFT JOIN FETCH a.member m LEFT JOIN FETCH m.user WHERE a.cell.id = :cellId AND a.date BETWEEN :startDate AND :endDate")
+    List<Attendance> findByCell_IdAndDateBetweenWithMemberAndCreatedBy(Long cellId, LocalDate startDate, LocalDate endDate);
 
     @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.createdBy LEFT JOIN FETCH a.member m LEFT JOIN FETCH m.user WHERE a.member.id = :memberId AND a.date BETWEEN :startDate AND :endDate")
     List<Attendance> findByMember_IdAndDateBetweenWithMemberAndCreatedBy(Long memberId, LocalDate startDate, LocalDate endDate);
@@ -64,7 +64,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
         "SUM(CASE WHEN a.status = com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT THEN 1 ELSE 0 END) AS presentRecords " +
         "FROM Attendance a " +
         "WHERE a.date BETWEEN :startDate AND :endDate " +
-        "AND (:cellId IS NULL OR a.member.cell.id = :cellId) " +
+        "AND (:cellId IS NULL OR a.cell.id = :cellId) " +
         "AND (:memberId IS NULL OR a.member.id = :memberId) " +
         "AND (:status IS NULL OR a.status = :status) " +
         "GROUP BY a.date " +
@@ -80,7 +80,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
     @Query("SELECT DISTINCT YEAR(a.date) FROM Attendance a ORDER BY YEAR(a.date) DESC")
     List<Integer> findDistinctYears();
 
-    @Query("SELECT DISTINCT YEAR(a.date) FROM Attendance a WHERE a.member.cell.id = :cellId ORDER BY YEAR(a.date) DESC")
+    @Query("SELECT DISTINCT YEAR(a.date) FROM Attendance a WHERE a.cell.id = :cellId ORDER BY YEAR(a.date) DESC")
     List<Integer> findDistinctYearsByCellId(@Param("cellId") Long cellId);
 
     @Query("SELECT a FROM Attendance a JOIN FETCH a.member WHERE a.member.id IN :memberIds ORDER BY a.date DESC")
@@ -94,7 +94,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
            "FROM Attendance a " +
            "WHERE a.date BETWEEN :startDate AND :endDate " +
            "AND a.status = com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT " +
-           "AND (:cellId IS NULL OR a.member.cell.id = :cellId) " +
+           "AND (:cellId IS NULL OR a.cell.id = :cellId) " +
            "GROUP BY a.date) as subquery")
     Double calculateWeeklyAverageAttendance(
         @Param("startDate") LocalDate startDate,
@@ -102,13 +102,13 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
         @Param("cellId") Long cellId
     );
 
-    @Query("SELECT a.member.cell.id as cellId, " +
+    @Query("SELECT a.cell.id as cellId, " +
            "SUM(CASE WHEN a.status = com.sdc.seouldreamcellbe.domain.common.AttendanceStatus.PRESENT THEN 1 ELSE 0 END) as presentCount, " +
            "COUNT(a) as totalCount " +
            "FROM Attendance a " +
-           "WHERE a.member.cell.id IN :cellIds " +
+           "WHERE a.cell.id IN :cellIds " +
            "AND a.date BETWEEN :startDate AND :endDate " +
-           "GROUP BY a.member.cell.id")
+           "GROUP BY a.cell.id")
     List<CellAttendanceStats> findAttendanceStatsByCellIds(
         @Param("cellIds") List<Long> cellIds,
         @Param("startDate") LocalDate startDate,

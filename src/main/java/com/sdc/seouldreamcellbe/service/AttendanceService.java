@@ -64,6 +64,11 @@ public class AttendanceService {
                 attendance.setMember(member);
             }
 
+            // Snapshot the current cell for historical integrity
+            if (attendance.getCell() == null && attendance.getMember() != null) {
+                attendance.setCell(attendance.getMember().getCell());
+            }
+
             attendance.setDate(request.date());
             attendance.setStatus(request.status());
             attendance.setMemo(request.memo());

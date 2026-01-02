@@ -258,7 +258,7 @@ public class AttendanceSummaryService {
         Cell cell = cellRepository.findById(cellId)
             .orElseThrow(() -> new NotFoundException("셀을 찾을 수 없습니다. ID: " + cellId));
 
-        List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
+        List<Attendance> attendances = attendanceRepository.findByCell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
         // Filter out executives from cell statistics for accuracy
         List<Member> activeMembersInCell = memberRepository.findByCell_IdAndRoleInAndActive(cellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
         Set<Long> activeMemberIds = activeMembersInCell.stream().map(Member::getId).collect(Collectors.toSet());
@@ -671,7 +671,7 @@ public class AttendanceSummaryService {
         Cell cell = cellRepository.findById(cellId)
             .orElseThrow(() -> new NotFoundException("셀을 찾을 수 없습니다. ID: " + cellId));
 
-        List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, finalStartDate, finalEndDate);
+        List<Attendance> attendances = attendanceRepository.findByCell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, finalStartDate, finalEndDate);
         
         // Filter out executives and non-active members
         List<Member> activeMembersInCell = memberRepository.findByCell_IdAndRoleInAndActive(cellId, List.of(Role.MEMBER, Role.CELL_LEADER), true);
@@ -746,7 +746,7 @@ public class AttendanceSummaryService {
             return Collections.emptyList();
         }
 
-        List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, finalStartDate, finalEndDate);
+        List<Attendance> attendances = attendanceRepository.findByCell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, finalStartDate, finalEndDate);
 
         Map<Long, List<Attendance>> attendancesByMember = attendances.stream()
             .collect(Collectors.groupingBy(att -> att.getMember().getId()));

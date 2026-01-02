@@ -58,7 +58,7 @@ public class ExcelExportService {
     }
 
     public byte[] exportCellAttendances(Long cellId, LocalDate startDate, LocalDate endDate) throws IOException {
-        List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
+        List<Attendance> attendances = attendanceRepository.findByCell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Attendances");

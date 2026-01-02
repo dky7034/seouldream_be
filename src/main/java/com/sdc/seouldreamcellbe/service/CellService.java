@@ -80,10 +80,14 @@ public class CellService {
             if (leaderMember == null || leaderMember.getCell() == null || !leaderMember.getCell().getId().equals(cellId)) {
                 throw new AccessDeniedException("셀장은 자신의 셀 대시보드만 조회할 수 있습니다.");
             }
-            // Enforce current year restriction for Cell Leaders
+            
+            // Security Check: Allow if Current Year OR Active Semester
             int currentYear = LocalDate.now().getYear();
-            if (startDate.getYear() != currentYear || endDate.getYear() != currentYear) {
-                throw new AccessDeniedException("셀장은 현재 연도의 데이터만 조회할 수 있습니다.");
+            boolean isCurrentYear = (startDate.getYear() == currentYear || endDate.getYear() == currentYear);
+            boolean isActiveSemester = activeSemesterService.isDateRangeInActiveSemester(startDate, endDate);
+
+            if (!isCurrentYear && !isActiveSemester) {
+                throw new AccessDeniedException("셀장은 현재 연도 또는 활성화된 학기의 데이터만 조회할 수 있습니다.");
             }
         } else if (currentUser.getRole() != Role.EXECUTIVE) {
             // Neither CELL_LEADER nor EXECUTIVE, deny access.
@@ -105,7 +109,7 @@ public class CellService {
         double attendanceRate = rateDto.attendanceRate();
 
         // Calculate incompleteCheckCount (Needs raw data)
-        List<Attendance> attendances = attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
+        List<Attendance> attendances = attendanceRepository.findByCell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate);
         int incompleteCheckCount = 0;
         
         LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;

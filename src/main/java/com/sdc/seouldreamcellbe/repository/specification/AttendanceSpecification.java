@@ -23,8 +23,8 @@ public class AttendanceSpecification {
             if (cellId == null) {
                 return criteriaBuilder.conjunction();
             }
-            // To join Member and then Cell
-            return criteriaBuilder.equal(root.get("member").get("cell").get("id"), cellId);
+            // Filter by Attendance's cell_id directly
+            return criteriaBuilder.equal(root.get("cell").get("id"), cellId);
         };
     }
 
