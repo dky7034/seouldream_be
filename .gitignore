@@ -1,7 +1,4 @@
-# Created by https://www.toptal.com/developers/gitignore/api/java,gradle,intellij,visualstudiocode,emacs,macos,windows
-# Edit at https://www.toptal.com/developers/gitignore?templates=java,gradle,intellij,visualstudiocode,emacs,macos,windows
-
-### STS ###
+### STS (Spring Tool Suite) ###
 .apt_generated
 .classpath
 .factorypath
@@ -48,12 +45,17 @@ build/
 .mtj.tmp/
 
 # Package Files #
-#*.jar
-#*.war
-#*.ear
+# ⚠️ 수정됨: 주석을 해제하여 실수로 jar가 올라가는 것을 방지합니다.
+*.jar
+*.war
+*.ear
 *.zip
 *.tar.gz
 *.rar
+
+# ⚠️ 추가됨: JVM Crash Logs (치명적 에러 발생 시 생성되는 파일)
+hs_err_pid*
+replay_pid*
 
 ### Operating System Files ###
 # Mac
@@ -66,12 +68,14 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-### Custom ###
+### Custom & Security ###
 # Local environment variables
 .env
 
-# Local application properties
+# ⚠️ 수정됨: 로컬 설정뿐만 아니라 비밀 설정 파일 패턴도 추가
 application-local.yml
+application-secret.yml
+application-prod.yml
 
 # Help file from Spring Initializr
 HELP.md
@@ -79,3 +83,15 @@ HELP.md
 ### Docker & Deployment ###
 frontend_build/
 data/
+
+### Qodana ###
+.qodana/
+
+### Logs ###
+logs/
+
+### Temp & Backups ###
+*.tmp
+*.bak
+*.swp
+*~
