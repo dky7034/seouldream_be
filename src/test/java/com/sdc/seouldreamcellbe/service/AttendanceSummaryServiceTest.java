@@ -84,7 +84,7 @@ class AttendanceSummaryServiceTest {
         List<Attendance> attendances = Arrays.asList(att1_1, att1_2, att2_1, att2_2, att3_1, att3_2);
 
         when(cellRepository.findById(cellId)).thenReturn(java.util.Optional.of(cell));
-        when(attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate))
+        when(attendanceRepository.findByCell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate))
                 .thenReturn(attendances);
         when(memberRepository.findByCell_IdAndRoleInAndActive(any(), any(), anyBoolean()))
                 .thenReturn(Arrays.asList(member1, member2, member3));
@@ -120,7 +120,7 @@ class AttendanceSummaryServiceTest {
         when(cellRepository.findById(cellId)).thenReturn(java.util.Optional.of(cell));
         when(memberRepository.findByCell_IdAndRoleInAndActive(any(), any(), anyBoolean()))
                 .thenReturn(Arrays.asList(member1));
-        when(attendanceRepository.findByMember_Cell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate))
+        when(attendanceRepository.findByCell_IdAndDateBetweenWithMemberAndCreatedBy(cellId, startDate, endDate))
                 .thenReturn(Collections.emptyList());
 
         // When

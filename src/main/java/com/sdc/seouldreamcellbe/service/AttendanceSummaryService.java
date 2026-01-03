@@ -3,6 +3,7 @@ package com.sdc.seouldreamcellbe.service;
 import com.sdc.seouldreamcellbe.domain.Attendance;
 import com.sdc.seouldreamcellbe.domain.Cell;
 import com.sdc.seouldreamcellbe.domain.Member;
+import com.sdc.seouldreamcellbe.domain.Semester;
 import com.sdc.seouldreamcellbe.domain.User;
 import com.sdc.seouldreamcellbe.domain.common.AttendanceStatus;
 import com.sdc.seouldreamcellbe.domain.common.GroupBy;
@@ -14,6 +15,7 @@ import com.sdc.seouldreamcellbe.exception.NotFoundException;
 import com.sdc.seouldreamcellbe.repository.AttendanceRepository;
 import com.sdc.seouldreamcellbe.repository.CellRepository;
 import com.sdc.seouldreamcellbe.repository.MemberRepository;
+import com.sdc.seouldreamcellbe.repository.SemesterRepository;
 import com.sdc.seouldreamcellbe.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,7 +49,7 @@ public class AttendanceSummaryService {
     private final CellRepository cellRepository;
     private final UserRepository userRepository;
     private final ActiveSemesterService activeSemesterService;
-
+    private final SemesterRepository semesterRepository;
 
     public List<MemberAlertDto> getAttendanceAlerts(int consecutiveAbsences, String username, LocalDate startDate, LocalDate endDate) {
         User user = userRepository.findByUsername(username)
@@ -864,7 +866,7 @@ public class AttendanceSummaryService {
         if (cells.isEmpty()) {
             return Collections.emptyMap();
         }
-        
+
         // If no date range is specified, default to the active semester
         if (startDate == null && endDate == null) {
             com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
@@ -880,7 +882,7 @@ public class AttendanceSummaryService {
         List<Member> allActiveMembers = memberRepository.findByCell_IdInAndRoleInAndActive(
             cellIds, List.of(Role.MEMBER, Role.CELL_LEADER), true
         );
-        
+
         if (allActiveMembers.isEmpty()) {
             return cells.stream().collect(Collectors.toMap(Cell::getId, c -> 0.0));
         }
@@ -892,11 +894,21 @@ public class AttendanceSummaryService {
 
         // 3. Prepare calculation helpers
         LocalDate calculationEndDate = finalEndDate.isAfter(LocalDate.now()) ? LocalDate.now() : finalEndDate;
-        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, calculationEndDate);
-        
+
+        // Get all Sundays in the requested date range first
+        List<LocalDate> allSundaysInDateRange = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(finalStartDate, calculationEndDate);
+
+        // Filter the Sundays to include only those that fall within any semester
+        List<Semester> allSemesters = semesterRepository.findAll();
+        List<LocalDate> allSundaysInSemesters = allSundaysInDateRange.stream()
+            .filter(sunday -> allSemesters.stream().anyMatch(semester ->
+                !sunday.isBefore(semester.getStartDate()) && !sunday.isAfter(semester.getEndDate())
+            ))
+            .collect(Collectors.toList());
+
         Map<Long, List<Member>> membersByCellId = allActiveMembers.stream()
             .collect(Collectors.groupingBy(m -> m.getCell().getId()));
-            
+
         Map<Long, List<Attendance>> attendancesByCellId = attendances.stream()
             .filter(att -> att.getMember().getCell() != null)
             .collect(Collectors.groupingBy(att -> att.getMember().getCell().getId()));
@@ -907,7 +919,7 @@ public class AttendanceSummaryService {
             cell -> {
                 List<Member> members = membersByCellId.getOrDefault(cell.getId(), Collections.emptyList());
                 List<Attendance> cellAttendances = attendancesByCellId.getOrDefault(cell.getId(), Collections.emptyList());
-                
+
                 // Filter attendances: check assignment date for each member
                 long presentCount = cellAttendances.stream()
                     .filter(att -> {
@@ -918,9 +930,10 @@ public class AttendanceSummaryService {
                     .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
                     .count();
-                
-                long totalPossible = calculatePossibleAttendance(allSundays, members);
-                
+
+                // Use the filtered list of Sundays (only those in semesters) for the denominator
+                long totalPossible = calculatePossibleAttendance(allSundaysInSemesters, members);
+
                 double rate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
                 rate = Math.round(rate * 100.0) / 100.0;
                 return Math.min(rate, 100.0);
