@@ -95,3 +95,9 @@ logs/
 *.bak
 *.swp
 *~
+
+### sql
+*.sql
+
+### py
+*.py

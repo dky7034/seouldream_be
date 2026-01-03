@@ -113,9 +113,15 @@ public class CellService {
         int incompleteCheckCount = 0;
         
         LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
-        List<LocalDate> sundaysInPeriod = startDate.datesUntil(calculationEndDate.plusDays(1))
-            .filter(date -> date.getDayOfWeek() == DayOfWeek.SUNDAY)
-            .collect(Collectors.toList());
+        
+        List<LocalDate> sundaysInPeriod;
+        if (startDate.isAfter(calculationEndDate)) {
+            sundaysInPeriod = Collections.emptyList();
+        } else {
+            sundaysInPeriod = startDate.datesUntil(calculationEndDate.plusDays(1))
+                .filter(date -> date.getDayOfWeek() == DayOfWeek.SUNDAY)
+                .collect(Collectors.toList());
+        }
 
         // Group attendances by date for quick lookup
         Map<LocalDate, List<Attendance>> attendancesByDate = attendances.stream()
