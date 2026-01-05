@@ -185,10 +185,9 @@ public class AttendanceSummaryService {
                 LocalDate calculationEndDate = periodEndDate.isAfter(LocalDate.now()) ? LocalDate.now() : periodEndDate;
                 List<LocalDate> allSundaysInPeriod = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStartDate, calculationEndDate);
                 
-                long totalPossible = calculatePossibleAttendance(allSundaysInPeriod, allActiveMembers);
-
-                double attendanceRate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
-                attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+                double attendanceRateRatio = (totalPossible > 0) ? ((double) presentCount / totalPossible) : 0.0;
+                double attendanceRatePercent = attendanceRateRatio * 100.0;
+                double attendanceRate = Math.round(attendanceRatePercent * 100.0) / 100.0;
                 
                 if (attendanceRate > 100.0) {
                     attendanceRate = 100.0;
@@ -228,8 +227,9 @@ public class AttendanceSummaryService {
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossibleAll = calculatePossibleAttendance(allSundaysInPeriodAll, allActiveMembers);
         
-        double overallAttendanceRate = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) * 100.0 : 0.0;
-        overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
+        double overallAttendanceRateRatio = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) : 0.0;
+        double overallAttendanceRatePercent = overallAttendanceRateRatio * 100.0;
+        double overallAttendanceRate = Math.round(overallAttendanceRatePercent * 100.0) / 100.0;
 
         if (overallAttendanceRate > 100.0) {
             overallAttendanceRate = 100.0;
@@ -335,8 +335,9 @@ public class AttendanceSummaryService {
                 
                 long totalPossible = calculatePossibleAttendance(allSundaysInPeriod, activeMembersInCell);
 
-                double attendanceRate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
-                attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+                double attendanceRateRatio = (totalPossible > 0) ? ((double) presentCount / totalPossible) : 0.0;
+                double attendanceRatePercent = attendanceRateRatio * 100.0;
+                double attendanceRate = Math.round(attendanceRatePercent * 100.0) / 100.0;
                 
                 if (attendanceRate > 100.0) {
                     attendanceRate = 100.0;
@@ -376,8 +377,9 @@ public class AttendanceSummaryService {
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossibleAll = calculatePossibleAttendance(allSundaysInPeriodAll, activeMembersInCell);
 
-        double overallAttendanceRate = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) * 100.0 : 0.0;
-        overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
+        double overallAttendanceRateRatio = (totalPossibleAll > 0) ? ((double) totalPresentAll / totalPossibleAll) : 0.0;
+        double overallAttendanceRatePercent = overallAttendanceRateRatio * 100.0;
+        double overallAttendanceRate = Math.round(overallAttendanceRatePercent * 100.0) / 100.0;
         
         if (overallAttendanceRate > 100.0) {
             overallAttendanceRate = 100.0;
@@ -516,8 +518,9 @@ public class AttendanceSummaryService {
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossible = calculatePossibleAttendance(allSundaysInPeriodAll, List.of(member));
 
-        double overallAttendanceRate = (totalPossible > 0) ? ((double) totalPresentAll / totalPossible) * 100.0 : 0.0;
-        overallAttendanceRate = Math.round(overallAttendanceRate * 100.0) / 100.0;
+        double overallAttendanceRateRatio = (totalPossible > 0) ? ((double) totalPresentAll / totalPossible) : 0.0;
+        double overallAttendanceRatePercent = overallAttendanceRateRatio * 100.0;
+        double overallAttendanceRate = Math.round(overallAttendanceRatePercent * 100.0) / 100.0;
         
         // Safe Guard: 100% 초과 시 100%로 제한
         if (overallAttendanceRate > 100.0) {
@@ -641,8 +644,9 @@ public class AttendanceSummaryService {
         // Use totalPossible as denominator
         long totalDays = totalPossible;
 
-        double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
-        attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+        double attendanceRateRatio = (totalDays > 0) ? ((double) presentCount / totalDays) : 0.0;
+        double attendanceRatePercent = attendanceRateRatio * 100.0;
+        double attendanceRate = Math.round(attendanceRatePercent * 100.0) / 100.0;
         
         if (attendanceRate > 100.0) {
             attendanceRate = 100.0;
@@ -709,8 +713,9 @@ public class AttendanceSummaryService {
         // Use totalPossible as the denominator
         long totalDays = totalPossible;
 
-        double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
-        attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+        double attendanceRateRatio = (totalDays > 0) ? ((double) presentCount / totalDays) : 0.0;
+        double attendanceRatePercent = attendanceRateRatio * 100.0;
+        double attendanceRate = Math.round(attendanceRatePercent * 100.0) / 100.0;
         
         // Safe Guard: Limit to 100%
         if (attendanceRate > 100.0) {
@@ -776,9 +781,9 @@ public class AttendanceSummaryService {
                 
                 long totalDays = calculatePossibleAttendance(allSundays, List.of(member));
 
-                double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
-                // Round to two decimal places
-                attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+                double attendanceRateRatio = (totalDays > 0) ? ((double) presentCount / totalDays) : 0.0;
+                double attendanceRatePercent = attendanceRateRatio * 100.0;
+                double attendanceRate = Math.round(attendanceRatePercent * 100.0) / 100.0;
                 
                 if (attendanceRate > 100.0) {
                     attendanceRate = 100.0;
@@ -812,8 +817,9 @@ public class AttendanceSummaryService {
 
         long totalDays = presentCount + absentCount;
 
-        double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
-        attendanceRate = Math.round(attendanceRate * 100.0) / 100.0;
+        double attendanceRateRatio = (totalDays > 0) ? ((double) presentCount / totalDays) : 0.0;
+        double attendanceRatePercent = attendanceRateRatio * 100.0;
+        double attendanceRate = Math.round(attendanceRatePercent * 100.0) / 100.0;
 
         return SimpleAttendanceRateDto.builder()
             .targetId(null) // Represents "Overall"
@@ -856,8 +862,9 @@ public class AttendanceSummaryService {
 
                 long totalDays = calculatePossibleAttendance(allSundays, List.of(member));
 
-                double attendanceRate = (totalDays > 0) ? ((double) presentCount / totalDays) * 100.0 : 0.0;
-                return Math.round(attendanceRate * 100.0) / 100.0;
+                double attendanceRateRatio = (totalDays > 0) ? ((double) presentCount / totalDays) : 0.0;
+                double attendanceRatePercent = attendanceRateRatio * 100.0;
+                return Math.round(attendanceRatePercent * 100.0) / 100.0;
             }
         ));
     }
@@ -934,8 +941,9 @@ public class AttendanceSummaryService {
                 // Use the filtered list of Sundays (only those in semesters) for the denominator
                 long totalPossible = calculatePossibleAttendance(allSundaysInSemesters, members);
 
-                double rate = (totalPossible > 0) ? ((double) presentCount / totalPossible) * 100.0 : 0.0;
-                rate = Math.round(rate * 100.0) / 100.0;
+                double rateRatio = (totalPossible > 0) ? ((double) presentCount / totalPossible) : 0.0;
+                double ratePercent = rateRatio * 100.0;
+                double rate = Math.round(ratePercent * 100.0) / 100.0;
                 return Math.min(rate, 100.0);
             }
         ));
