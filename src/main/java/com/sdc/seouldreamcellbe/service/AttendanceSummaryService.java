@@ -185,6 +185,8 @@ public class AttendanceSummaryService {
                 LocalDate calculationEndDate = periodEndDate.isAfter(LocalDate.now()) ? LocalDate.now() : periodEndDate;
                 List<LocalDate> allSundaysInPeriod = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(periodStartDate, calculationEndDate);
                 
+                long totalPossible = calculatePossibleAttendance(allSundaysInPeriod, allActiveMembers);
+
                 double attendanceRateRatio = (totalPossible > 0) ? ((double) presentCount / totalPossible) : 0.0;
                 double attendanceRatePercent = attendanceRateRatio * 100.0;
                 double attendanceRate = Math.round(attendanceRatePercent * 100.0) / 100.0;
