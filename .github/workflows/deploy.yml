@@ -69,6 +69,9 @@ jobs:
 
             cd /home/ubuntu/seouldream_be
             
+            # 최신 설정 파일(docker-compose.yml 등) 가져오기
+            git pull origin main
+
             # temp 폴더에서 파일 꺼내오기
             mv temp/app.jar app.jar
             rm -rf temp
