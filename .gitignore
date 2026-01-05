@@ -96,6 +96,11 @@ logs/
 *.swp
 *~
 
+### Monitoring & Load Testing ###
+k6-result.*
+prometheus-data/
+grafana-data/
+
 ### sql
 *.sql
 
