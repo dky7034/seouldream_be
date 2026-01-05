@@ -213,19 +213,23 @@ public class AttendanceSummaryService {
             .collect(Collectors.toList());
 
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+
         long totalPresentAll = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
             .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         long totalAbsentAll = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
             .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         
         // NEW: Calculate accurate denominator for total summary based on ALL Sundays in the range
-        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossibleAll = calculatePossibleAttendance(allSundaysInPeriodAll, allActiveMembers);
         
@@ -363,19 +367,22 @@ public class AttendanceSummaryService {
             .collect(Collectors.toList());
 
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+
         long totalPresentAll = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
             .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         long totalAbsentAll = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
             .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         
         // NEW: Calculate accurate denominator for total summary based on ALL Sundays
-        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossibleAll = calculatePossibleAttendance(allSundaysInPeriodAll, activeMembersInCell);
 
@@ -497,13 +504,17 @@ public class AttendanceSummaryService {
 
         // 전체 기간에 대한 총 요약 (TotalSummaryDto) 계산
         // 중복 출석 제거 (distinct WEEKS)
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+
         long totalPresentAll = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
             .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
             
         long totalAbsentAll = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
             .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
@@ -511,12 +522,12 @@ public class AttendanceSummaryService {
         
         // Count distinct weeks with ANY record
         long totalRecordedAttendancesAll = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
 
         // 분모: 기간 내 전체 주일(일요일) 수 계산 (가입일/배정일 고려)
-        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
         List<LocalDate> allSundaysInPeriodAll = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
         long totalPossible = calculatePossibleAttendance(allSundaysInPeriodAll, List.of(member));
 
@@ -627,21 +638,23 @@ public class AttendanceSummaryService {
 
         List<Attendance> attendances = attendanceRepository.findByMember_IdAndDateBetweenWithMemberAndCreatedBy(memberId, effectiveStartDate, endDate);
 
+        // Calculate total possible Sundays in the requested range
+        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
+        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
+        long totalPossible = calculatePossibleAttendance(allSundays, List.of(member));
+
         long presentCount = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
             .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
         long absentCount = attendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.ABSENT)
             .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
             .count();
-
-        // Calculate total possible Sundays in the requested range
-        LocalDate calculationEndDate = endDate.isAfter(LocalDate.now()) ? LocalDate.now() : endDate;
-        List<LocalDate> allSundays = com.sdc.seouldreamcellbe.util.DateUtil.getSundaysInRange(startDate, calculationEndDate);
-        long totalPossible = calculatePossibleAttendance(allSundays, List.of(member));
 
         // Use totalPossible as denominator
         long totalDays = totalPossible;
@@ -701,6 +714,7 @@ public class AttendanceSummaryService {
 
         // Count distinct weekly attendance for each member
         long presentCount = filteredAttendances.stream()
+            .filter(att -> !att.getDate().isAfter(calculationEndDate))
             .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
             .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
             .distinct()
@@ -770,6 +784,7 @@ public class AttendanceSummaryService {
 
                 long presentCount = memberAttendances.stream()
                     .filter(att -> !att.getDate().isBefore(effectiveStart)) // Filter by effective start
+                    .filter(att -> !att.getDate().isAfter(calculationEndDate))
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
                     .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
@@ -857,6 +872,7 @@ public class AttendanceSummaryService {
                 List<Attendance> memberAttendances = attendancesByMember.getOrDefault(member.getId(), Collections.emptyList());
                 long presentCount = memberAttendances.stream()
                     .filter(att -> !att.getDate().isBefore(effectiveStartDate)) // Filter out records before assignment
+                    .filter(att -> !att.getDate().isAfter(calculationEndDate))
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
                     .map(att -> att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
@@ -866,7 +882,8 @@ public class AttendanceSummaryService {
 
                 double attendanceRateRatio = (totalDays > 0) ? ((double) presentCount / totalDays) : 0.0;
                 double attendanceRatePercent = attendanceRateRatio * 100.0;
-                return Math.round(attendanceRatePercent * 100.0) / 100.0;
+                double attendanceRate = Math.round(attendanceRatePercent * 100.0) / 100.0;
+                return Math.min(attendanceRate, 100.0);
             }
         ));
     }
@@ -935,6 +952,7 @@ public class AttendanceSummaryService {
                         LocalDate effectiveStart = getMemberEffectiveStartDate(att.getMember());
                         return !att.getDate().isBefore(effectiveStart);
                     })
+                    .filter(att -> !att.getDate().isAfter(calculationEndDate))
                     .filter(att -> att.getStatus() == AttendanceStatus.PRESENT)
                     .map(att -> att.getMember().getId() + "_" + att.getDate().get(IsoFields.WEEK_BASED_YEAR) + "-W" + att.getDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR))
                     .distinct()
