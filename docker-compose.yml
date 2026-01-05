@@ -16,6 +16,8 @@ services:
     networks:
       - seouldream-net
     restart: always
+    ports:
+      - "8080:8080"    # ✅ 외부 8080 포트를 내부 8080 포트와 연결
     logging: # ✅ 로그 용량 제한 추가
       driver: "json-file"
       options:
