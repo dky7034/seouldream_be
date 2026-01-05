@@ -18,7 +18,7 @@ export let options = {
 };
 
 // ⚠️ 배포된 실제 운영/스테이징 서버 주소
-const BASE_URL = 'https://api.seouldream.store'; 
+const BASE_URL = 'https://seouldream.store';
 
 // ⚠️ 실제 DB에 존재하는 테스트 계정 정보
 const USERNAME = 'test'; 
