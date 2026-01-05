@@ -6,15 +6,17 @@ import { Rate } from 'k6/metrics';
 export let errorRate = new Rate('errors');
 
 export let options = {
-  stages: [
-    { duration: '30s', target: 20 }, // 30초 동안 사용자 20명까지 증가 (Ramp-up)
-    { duration: '1m', target: 20 },  // 1분간 유지
-    { duration: '30s', target: 0 },  // 30초 동안 종료 (Ramp-down)
-  ],
-  thresholds: {
-    errors: ['rate<0.1'], // 에러율이 10% 미만이어야 성공
-    http_req_duration: ['p(95)<500'], // 95%의 요청이 500ms 이내여야 함
-  },
+    // 스파이크 테스트 (Spike Test) 설정
+    stages: [
+        { duration: '1m', target: 100 },  // 1. 1분 동안 100명까지 워밍업
+        { duration: '30s', target: 500 }, // 2. 30초 만에 500명으로 급격히 증가 (트래픽 폭주 상황)
+        { duration: '3m', target: 500 },  // 3. 500명 상태로 3분간 지속 (서버가 버티는지 확인)
+        { duration: '1m', target: 0 },    // 4. 서서히 종료
+    ],
+    thresholds: {
+        errors: ['rate<0.1'], // 에러율 10% 미만 (500명이면 에러가 날 확률이 높으므로 관대하게 설정)
+        http_req_duration: ['p(95)<3000'], // 95% 요청이 3초 이내면 성공으로 간주
+    },
 };
 
 const BASE_URL = 'http://localhost:8080'; // 로컬 테스트 주소 (Docker 내부 통신 아님)

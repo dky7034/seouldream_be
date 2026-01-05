@@ -6,15 +6,17 @@ import { Rate } from 'k6/metrics';
 export let errorRate = new Rate('errors');
 
 export let options = {
-  stages: [
-    { duration: '30s', target: 10 }, // 30초 동안 사용자 10명까지 서서히 증가 (Warm-up)
-    { duration: '1m', target: 10 },  // 1분간 10명 유지 (부하 지속)
-    { duration: '30s', target: 0 },  // 30초 동안 종료 (Cool-down)
-  ],
-  thresholds: {
-    errors: ['rate<0.05'], // 에러율이 5% 미만이어야 성공 (운영 환경은 더 엄격하게)
-    http_req_duration: ['p(95)<1000'], // 95%의 요청이 1초(1000ms) 이내여야 함 (네트워크 지연 고려)
-  },
+    // 실제 사용자가 50명이므로, 여유 있게 70명까지 테스트 (이 정도만 버텨도 실제 운영엔 차고 넘침)
+    stages: [
+        { duration: '1m', target: 20 },   // 1. 천천히 20명까지 워밍업
+        { duration: '1m', target: 70 },   // 2. 트래픽이 몰리는 상황 가정 (70명까지 증가)
+        { duration: '5m', target: 70 },   // 3. 70명 상태로 5분간 지속 (CPU 크레딧/메모리 누수 확인)
+        { duration: '1m', target: 0 },    // 4. 종료
+    ],
+    thresholds: {
+        errors: ['rate<0.01'], // 목표 인원이 줄었으니 에러율 기준을 더 엄격하게 (1% 미만)
+        http_req_duration: ['p(95)<1000'], // 500ms~1초 이내 응답 목표 (t3a.small도 이 정도는 해야 함)
+    },
 };
 
 // ⚠️ 배포된 실제 운영/스테이징 서버 주소
