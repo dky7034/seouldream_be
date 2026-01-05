@@ -78,6 +78,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/members").permitAll() // Allow registration
+                        .requestMatchers("/actuator/**").permitAll() // Allow monitoring
                         .anyRequest().authenticated()
                 );
 

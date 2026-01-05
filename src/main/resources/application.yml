@@ -13,6 +13,17 @@ spring:
       hibernate:
         format_sql: true
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+
 app:
   jwt:
     secret: ${APP_JWT_SECRET} # This value will be injected from an environment variable

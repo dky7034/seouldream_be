@@ -80,6 +80,30 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  prometheus:
+    image: prom/prometheus
+    container_name: seouldream-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - seouldream-net
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana
+    container_name: seouldream-grafana
+    ports:
+      - "3001:3000" # 로컬 3000포트 충돌 방지 위해 3001 사용
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - seouldream-net
+    depends_on:
+      - prometheus
+
 networks:
   seouldream-net:
     driver: bridge
