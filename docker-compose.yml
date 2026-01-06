@@ -18,6 +18,8 @@ services:
     restart: always
     ports:
       - "8080:8080"    # ✅ 외부 8080 포트를 내부 8080 포트와 연결
+    volumes:
+      - ./logs:/var/logs/seouldream # ✅ 로그 파일 영구 저장
     logging: # ✅ 로그 용량 제한 추가
       driver: "json-file"
       options:
