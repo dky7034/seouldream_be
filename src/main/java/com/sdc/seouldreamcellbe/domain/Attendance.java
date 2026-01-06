@@ -8,9 +8,15 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "attendances", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"member_id", "date"})
-})
+@Table(name = "attendances", 
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"member_id", "date"})
+    },
+    indexes = {
+        @Index(name = "idx_attendance_cell_date", columnList = "cell_id, date"),
+        @Index(name = "idx_attendance_date", columnList = "date")
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor
