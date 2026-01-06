@@ -6,16 +6,16 @@ import { Rate } from 'k6/metrics';
 export let errorRate = new Rate('errors');
 
 export let options = {
-    // 실제 사용자가 50명이므로, 여유 있게 70명까지 테스트 (이 정도만 버텨도 실제 운영엔 차고 넘침)
+    // 실제 운영 서버 사양(t3a.small)의 한계를 확인하기 위해 300명으로 설정
     stages: [
-        { duration: '1m', target: 20 },   // 1. 천천히 20명까지 워밍업
-        { duration: '1m', target: 70 },   // 2. 트래픽이 몰리는 상황 가정 (70명까지 증가)
-        { duration: '5m', target: 70 },   // 3. 70명 상태로 5분간 지속 (CPU 크레딧/메모리 누수 확인)
+        { duration: '1m', target: 100 },  // 1. 100명까지 워밍업
+        { duration: '1m', target: 300 },  // 2. 300명으로 증가
+        { duration: '3m', target: 300 },  // 3. 300명 상태로 3분간 지속 (한계 확인)
         { duration: '1m', target: 0 },    // 4. 종료
     ],
     thresholds: {
-        errors: ['rate<0.01'], // 목표 인원이 줄었으니 에러율 기준을 더 엄격하게 (1% 미만)
-        http_req_duration: ['p(95)<1000'], // 500ms~1초 이내 응답 목표 (t3a.small도 이 정도는 해야 함)
+        errors: ['rate<0.05'], // 에러율 5% 미만 목표
+        http_req_duration: ['p(95)<2000'], // 95% 요청이 2초 이내 응답 목표
     },
 };
 
