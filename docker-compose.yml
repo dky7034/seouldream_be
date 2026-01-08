@@ -12,15 +12,15 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - APP_JWT_SECRET=${APP_JWT_SECRET}
-      - TZ=Asia/Seoul  # ✅ 한국 시간 설정
+      - TZ=Asia/Seoul
     networks:
       - seouldream-net
     restart: always
     ports:
-      - "8080:8080"    # ✅ 외부 8080 포트를 내부 8080 포트와 연결
+      - "8080:8080"
     volumes:
-      - ./logs:/app/logs # ✅ 로그 파일 영구 저장 (상대 경로 일치)
-    logging: # ✅ 로그 용량 제한 추가
+      - ./logs:/app/logs
+    logging:
       driver: "json-file"
       options:
         max-size: "10m"
@@ -33,7 +33,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      - TZ=Asia/Seoul # ✅ 한국 시간 설정
+      - TZ=Asia/Seoul
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
@@ -44,7 +44,7 @@ services:
       - app
     networks:
       - seouldream-net
-    logging: # ✅ 로그 용량 제한 추가
+    logging:
       driver: "json-file"
       options:
         max-size: "10m"
@@ -62,11 +62,11 @@ services:
     image: mysql:8.0
     container_name: seouldream-db
     ports:
-      - "127.0.0.1:3307:3306" # ✅ 중요! 외부 접속 완전 차단 (SSH 터널링은 가능)
+      - "127.0.0.1:3307:3306"
     environment:
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - TZ=Asia/Seoul # ✅ 한국 시간 설정
+      - TZ=Asia/Seoul
     volumes:
       - db_data:/var/lib/mysql
     networks:
@@ -78,7 +78,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    logging: # ✅ 로그 용량 제한 추가
+    logging:
       driver: "json-file"
       options:
         max-size: "10m"
@@ -89,6 +89,7 @@ services:
     container_name: seouldream-prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus # ✅ 추가: 수집된 데이터 저장소
     ports:
       - "9090:9090"
     networks:
@@ -100,13 +101,15 @@ services:
     image: grafana/grafana
     container_name: seouldream-grafana
     ports:
-      - "3001:3000" # 로컬 3000포트 충돌 방지 위해 3001 사용
+      - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:
       - seouldream-net
     depends_on:
       - prometheus
+    volumes: # ✅ 추가됨
+      - grafana_data:/var/lib/grafana
 
 networks:
   seouldream-net:
@@ -114,3 +117,5 @@ networks:
 
 volumes:
   db_data:
+  grafana_data: # ✅ 추가됨
+  prometheus_data: # ✅ 추가됨
