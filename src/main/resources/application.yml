@@ -15,12 +15,14 @@ spring:
 
 logging:
   file:
-    name: /var/logs/seouldream/application.log
+    # 절대 경로(/var/...)를 제거하고 상대 경로로 수정
+    name: logs/application.log
   logback:
     rollingpolicy:
       max-file-size: 10MB
       max-history: 30
       total-size-cap: 1GB
+      # 파일 이름 패턴도 자동으로 상대 경로를 따라갑니다.
       file-name-pattern: ${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz
 
 management:
