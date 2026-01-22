@@ -199,29 +199,21 @@ public class DashboardService {
             .distinct()
             .count();
 
-        // 2. Detailed Age Counts
-        // 10s and under: age < 20 (born after 20 years ago today)
-        LocalDate start10s = now.minusYears(20).plusDays(1);
-        Integer count10sAndUnder = (int) memberRepository.countByBirthDateBetweenAndActive(start10s, now, true);
+        // 2. Detailed Age Counts (대학부/청년부) - Rolling Age
+        int currentYear = now.getYear();
+        int daehakStartYear = currentYear - 27; // 한국나이 28세가 되는 해의 생년
 
-        // 20s: 20 <= age <= 29
-        LocalDate start20s = now.minusYears(30).plusDays(1);
-        LocalDate end20s = now.minusYears(20);
-        Integer count20s = (int) memberRepository.countByBirthDateBetweenAndActive(start20s, end20s, true);
+        LocalDate daehakStartDate = LocalDate.of(daehakStartYear, 1, 1);
+        LocalDate cheongnyeonEndDate = daehakStartDate.minusDays(1); // 바로 전날 (ex: 1998-12-31 for 2026)
 
-        // 30s: 30 <= age <= 39
-        LocalDate start30s = now.minusYears(40).plusDays(1);
-        LocalDate end30s = now.minusYears(30);
-        Integer count30s = (int) memberRepository.countByBirthDateBetweenAndActive(start30s, end30s, true);
+        Integer countCheongnyeon = (int) memberRepository.countByBirthDateBetweenAndActive(now.minusYears(150), cheongnyeonEndDate, true);
+        Integer countDaehak = (int) memberRepository.countByBirthDateBetweenAndActive(daehakStartDate, now, true);
 
-        // 40s and over: age >= 40
-        LocalDate end40s = now.minusYears(40);
-        Integer count40sAndOver = (int) memberRepository.countByBirthDateBetweenAndActive(now.minusYears(150), end40s, true);
 
         // 3. Distribution (with gap filling)
         List<Object[]> distributionRaw = memberRepository.findBirthYearDistribution();
         if (distributionRaw.isEmpty()) {
-            return new DashboardDto.DemographicsDto(totalCellCount, totalMemberCount, cellMemberCount, previousSemesterCount, executiveCount, cellLeaderCount, count10sAndUnder, count20s, count30s, count40sAndOver, Collections.emptyList());
+            return new DashboardDto.DemographicsDto(totalCellCount, totalMemberCount, cellMemberCount, previousSemesterCount, executiveCount, cellLeaderCount, countDaehak, countCheongnyeon, Collections.emptyList());
         }
 
         java.util.Map<Integer, DashboardDto.DemographicsDistribution> distMap = new java.util.HashMap<>();
@@ -261,10 +253,8 @@ public class DashboardService {
             previousSemesterCount,
             executiveCount,
             cellLeaderCount,
-            count10sAndUnder,
-            count20s,
-            count30s,
-            count40sAndOver,
+            countDaehak,
+            countCheongnyeon,
             distribution
         );
     }

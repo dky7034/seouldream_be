@@ -83,10 +83,8 @@ public record DashboardDto(
         Integer previousSemesterCount,
         Integer executiveCount,
         Integer cellLeaderCount,
-        Integer count10sAndUnder,
-        Integer count20s,
-        Integer count30s,
-        Integer count40sAndOver,
+        Integer countDaehak, // 대학부 (99년생 이상)
+        Integer countCheongnyeon, // 청년부 (98년생 이하)
         List<DemographicsDistribution> distribution
     ) {}
 
