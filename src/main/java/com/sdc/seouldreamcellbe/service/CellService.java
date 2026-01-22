@@ -1,5 +1,7 @@
 package com.sdc.seouldreamcellbe.service;
 
+import com.sdc.seouldreamcellbe.repository.CellReportRepository;
+import java.time.format.DateTimeFormatter; // Import DateTimeFormatter
 import com.sdc.seouldreamcellbe.domain.*;
 import com.sdc.seouldreamcellbe.domain.common.AttendanceStatus;
 import com.sdc.seouldreamcellbe.domain.common.Role;
@@ -44,10 +46,11 @@ public class CellService {
     private final CellRepository cellRepository;
     private final MemberRepository memberRepository;
     private final com.sdc.seouldreamcellbe.repository.AttendanceRepository attendanceRepository;
-    private final com.sdc.seouldreamcellbe.repository.SemesterRepository semesterRepository; // Added injection
+    private final com.sdc.seouldreamcellbe.repository.SemesterRepository semesterRepository;
+    private final CellReportRepository cellReportRepository; // Inject CellReportRepository
     private final com.sdc.seouldreamcellbe.security.CurrentUserFinder currentUserFinder;
     private final ActiveSemesterService activeSemesterService;
-    private final AttendanceSummaryService attendanceSummaryService; // Injected for accurate calculation
+    private final AttendanceSummaryService attendanceSummaryService;
 
     public List<Integer> getAvailableYears(Long cellId) {
         return attendanceRepository.findDistinctYearsByCellId(cellId);
@@ -59,6 +62,13 @@ public class CellService {
             .distinct()
             .sorted(java.util.Collections.reverseOrder())
             .collect(Collectors.toList());
+    }
+
+    public List<String> getSubmittedCellReportDates(Long cellId, Integer year, Integer month) {
+        List<LocalDate> dates = cellReportRepository.findDistinctMeetingDatesByCellIdAndOptionalYearMonth(cellId, year, month);
+        return dates.stream()
+                .map(date -> date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                .collect(Collectors.toList());
     }
 
     public CellLeaderDashboardDto getCellLeaderDashboardSummary(Long cellId, LocalDate startDate, LocalDate endDate) {

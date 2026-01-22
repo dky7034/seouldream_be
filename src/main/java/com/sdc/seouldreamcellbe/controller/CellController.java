@@ -53,6 +53,18 @@ public class CellController {
         return ResponseEntity.ok(report); // Returns null (200 OK) if not found
     }
 
+    @Operation(summary = "[신규] 셀 모임 보고서 제출일 목록 조회", description = "특정 셀이 보고서를 제출한 날짜 목록을 조회합니다. 달력 UI에 표시하기 위해 사용됩니다.")
+    @GetMapping("/{cellId}/submitted-dates")
+    @PreAuthorize("hasRole('EXECUTIVE') or @customSecurityEvaluator.isCellLeaderOfCell(authentication, #cellId)")
+    public ResponseEntity<List<String>> getSubmittedCellReportDates(
+            @PathVariable Long cellId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        List<String> submittedDates = cellService.getSubmittedCellReportDates(cellId, year, month);
+        return ResponseEntity.ok(submittedDates);
+    }
+
     @PreAuthorize("hasRole('EXECUTIVE')")
     @PostMapping
     public ResponseEntity<CellDto> createCell(@Valid @RequestBody CreateCellRequest request) {
