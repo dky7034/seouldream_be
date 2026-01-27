@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -26,13 +27,12 @@ jobs:
         # test 제외하고 빌드 (빠른 배포용)
         run: ./gradlew clean build --exclude-task test
 
-      # 🚨 중요: Gradle에서 이미 app.jar로 만들었으므로 이름 변경(mv) 단계 삭제됨
-
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: spring-app
-          path: build/libs/app.jar  # Gradle 설정 덕분에 바로 이 경로에 파일이 있습니다.
+          # Gradle 빌드 결과물 경로 (프로젝트 설정에 따라 다를 수 있음)
+          path: build/libs/app.jar
 
   # [JOB 2] 배포 작업
   deploy:
@@ -45,7 +45,7 @@ jobs:
           name: spring-app
           path: build/libs
 
-      # 1. 파일 전송
+      # 1. 파일 전송 (SCP)
       - name: Transfer Jar to Server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -56,7 +56,7 @@ jobs:
           target: "/home/ubuntu/seouldream_be/temp"
           strip_components: 2
 
-      # 2. 배포 스크립트 실행
+      # 2. 배포 스크립트 실행 (SSH)
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -67,19 +67,22 @@ jobs:
             # 에러 발생 시 즉시 중단
             set -e
 
+            # 프로젝트 폴더로 이동 (경로가 정확한지 확인 필수)
             cd /home/ubuntu/seouldream_be
             
-            # 최신 설정 파일(docker-compose.yml 등) 가져오기
-            git pull origin main
+            # [수정됨] 충돌 방지를 위해 강제 동기화 (git pull 대신 사용)
+            # 서버의 로컬 변경사항을 무시하고 GitHub 최신 코드로 덮어씌움
+            git fetch origin main
+            git reset --hard origin/main
 
-            # temp 폴더에서 파일 꺼내오기
+            # temp 폴더에서 전송된 jar 파일 꺼내오기
             mv temp/app.jar app.jar
             rm -rf temp
 
             # 기존 컨테이너 내리기
             sudo docker-compose down
 
-            # (선택) 기존 이미지 삭제하여 공간 확보
+            # (선택) 기존 이미지 삭제하여 공간 확보 (에러나도 무시하고 진행)
             sudo docker rmi seouldream_be_app || true
 
             # 다시 빌드 및 실행
