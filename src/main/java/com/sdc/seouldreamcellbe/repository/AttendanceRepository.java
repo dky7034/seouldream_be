@@ -136,4 +136,10 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>, J
         @Param("endDate") LocalDate endDate,
         @Param("cellId") Long cellId
     );
+
+    @Query("SELECT DISTINCT a.date FROM Attendance a WHERE a.cell.id = :cellId ORDER BY a.date ASC")
+    List<LocalDate> findDistinctDatesByCellId(@Param("cellId") Long cellId);
+
+    @Query("SELECT DISTINCT a.date FROM Attendance a WHERE a.cell.id = :cellId AND a.date BETWEEN :startDate AND :endDate ORDER BY a.date ASC")
+    List<LocalDate> findDistinctDatesByCellIdAndDateBetween(@Param("cellId") Long cellId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 }

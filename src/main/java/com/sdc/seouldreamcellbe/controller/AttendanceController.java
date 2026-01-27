@@ -148,10 +148,36 @@ public class AttendanceController {
         return ResponseEntity.ok(PageResponseDto.from(result));
     }
     
-    @PreAuthorize("@customSecurityEvaluator.canManageAttendance(authentication, #id)")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAttendance(@PathVariable("id") Long id) {
-        attendanceService.deleteAttendance(id);
-        return ResponseEntity.noContent().build();
+        @PreAuthorize("@customSecurityEvaluator.canManageAttendance(authentication, #id)")
+    
+        @DeleteMapping("/{id}")
+    
+        public ResponseEntity<Void> deleteAttendance(@PathVariable("id") Long id) {
+    
+            attendanceService.deleteAttendance(id);
+    
+            return ResponseEntity.noContent().build();
+    
+        }
+    
+    
+    
+        @GetMapping("/submitted-dates/{cellId}")
+    
+        @PreAuthorize("hasRole('EXECUTIVE') or @customSecurityEvaluator.isCellLeaderOfCell(authentication, #cellId)")
+    
+        public ResponseEntity<SubmittedDatesDto> getSubmittedDates(
+    
+                @PathVariable Long cellId,
+    
+                @RequestParam(required = false) Long semesterId) {
+    
+            SubmittedDatesDto submittedDates = attendanceService.getSubmittedDates(cellId, semesterId);
+    
+            return ResponseEntity.ok(submittedDates);
+    
+        }
+    
     }
-}
+    
+    
