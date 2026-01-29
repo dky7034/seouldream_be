@@ -682,9 +682,23 @@ public class AttendanceSummaryService {
     public SimpleAttendanceRateDto getCellAttendanceRate(Long cellId, LocalDate startDate, LocalDate endDate) {
         // If no date range is specified, default to the active semester
         if (startDate == null && endDate == null) {
-            com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
-            startDate = activeSemester.getStartDate();
-            endDate = activeSemester.getEndDate();
+            try {
+                com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
+                startDate = activeSemester.getStartDate();
+                endDate = activeSemester.getEndDate();
+            } catch (com.sdc.seouldreamcellbe.exception.BusinessException e) {
+                // If no active semester, return a zero rate instead of throwing an error
+                return SimpleAttendanceRateDto.builder()
+                    .targetId(cellId)
+                    .targetName("N/A")
+                    .attendanceRate(0.0)
+                    .presentCount(0)
+                    .absentCount(0)
+                    .totalDays(0)
+                    .startDate(null)
+                    .endDate(null)
+                    .build();
+            }
         }
         final LocalDate finalStartDate = startDate;
         final LocalDate finalEndDate = endDate;
@@ -753,9 +767,14 @@ public class AttendanceSummaryService {
     public List<SimpleAttendanceRateDto> getCellMembersAttendanceRates(Long cellId, LocalDate startDate, LocalDate endDate) {
         // If no date range is specified, default to the active semester
         if (startDate == null && endDate == null) {
-            com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
-            startDate = activeSemester.getStartDate();
-            endDate = activeSemester.getEndDate();
+            try {
+                com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
+                startDate = activeSemester.getStartDate();
+                endDate = activeSemester.getEndDate();
+            } catch (com.sdc.seouldreamcellbe.exception.BusinessException e) {
+                // If no active semester, we can't calculate rates for members.
+                return Collections.emptyList();
+            }
         }
         final LocalDate finalStartDate = startDate;
         final LocalDate finalEndDate = endDate;
@@ -895,9 +914,14 @@ public class AttendanceSummaryService {
 
         // If no date range is specified, default to the active semester
         if (startDate == null && endDate == null) {
-            com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
-            startDate = activeSemester.getStartDate();
-            endDate = activeSemester.getEndDate();
+            try {
+                com.sdc.seouldreamcellbe.domain.Semester activeSemester = activeSemesterService.getActiveSemester();
+                startDate = activeSemester.getStartDate();
+                endDate = activeSemester.getEndDate();
+            } catch (com.sdc.seouldreamcellbe.exception.BusinessException e) {
+                // If no active semester, return 0.0 for all cells
+                return cells.stream().collect(Collectors.toMap(Cell::getId, c -> 0.0));
+            }
         }
         final LocalDate finalStartDate = startDate;
         final LocalDate finalEndDate = endDate;

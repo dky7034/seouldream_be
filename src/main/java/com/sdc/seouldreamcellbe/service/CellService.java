@@ -74,9 +74,19 @@ public class CellService {
     public CellLeaderDashboardDto getCellLeaderDashboardSummary(Long cellId, LocalDate startDate, LocalDate endDate) {
         // If no date range is specified, default to the active semester
         if (startDate == null && endDate == null) {
-            Semester activeSemester = activeSemesterService.getActiveSemester();
-            startDate = activeSemester.getStartDate();
-            endDate = activeSemester.getEndDate();
+            try {
+                Semester activeSemester = activeSemesterService.getActiveSemester();
+                startDate = activeSemester.getStartDate();
+                endDate = activeSemester.getEndDate();
+            } catch (com.sdc.seouldreamcellbe.exception.BusinessException e) {
+                // If no active semester, we can't show trend data, so return empty/zero summary
+                return CellLeaderDashboardDto.builder()
+                    .presentRecords(0)
+                    .totalMembers(memberRepository.countByCell_IdAndActive(cellId, true))
+                    .attendanceRate(0.0)
+                    .incompleteCheckCount(0)
+                    .build();
+            }
         }
 
         User currentUser = currentUserFinder.getCurrentUser();
