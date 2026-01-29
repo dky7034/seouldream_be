@@ -48,9 +48,14 @@ public class ReportService {
     public List<IncompleteCheckReportDto> getIncompleteChecks(LocalDate startDate, LocalDate endDate) {
         // If no date range is specified, default to the active semester
         if (startDate == null && endDate == null) {
-            Semester activeSemester = activeSemesterService.getActiveSemester();
-            startDate = activeSemester.getStartDate();
-            endDate = activeSemester.getEndDate();
+            try {
+                Semester activeSemester = activeSemesterService.getActiveSemester();
+                startDate = activeSemester.getStartDate();
+                endDate = activeSemester.getEndDate();
+            } catch (com.sdc.seouldreamcellbe.exception.BusinessException e) {
+                // If no active semester, return empty list
+                return Collections.emptyList();
+            }
         }
         
         // Prevent checking future dates for incomplete checks
