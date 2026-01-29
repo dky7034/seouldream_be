@@ -4,25 +4,30 @@ spring:
   application:
     name: seouldreamcell-be
 
+  # .env 파일의 변수명과 정확히 매칭했습니다.
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: update
-    #    show-sql: true   # JPA 쿼리를 콘솔에 출력 (개발 시 유용)
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
 
 logging:
   file:
-    # 절대 경로(/var/...)를 제거하고 상대 경로로 수정
     name: logs/application.log
   logback:
     rollingpolicy:
       max-file-size: 10MB
       max-history: 30
       total-size-cap: 1GB
-      # 파일 이름 패턴도 자동으로 상대 경로를 따라갑니다.
       file-name-pattern: ${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz
 
 management:
@@ -38,7 +43,7 @@ management:
 
 app:
   jwt:
-    secret: ${APP_JWT_SECRET} # This value will be injected from an environment variable
-    expiration-ms: 86400000 # 24 hours
-    refresh-expiration-ms: 86400000 # 1 day (default)
-    remember-me-expiration-ms: 2592000000 # 30 days
+    secret: ${APP_JWT_SECRET}
+    expiration-ms: 86400000
+    refresh-expiration-ms: 86400000
+    remember-me-expiration-ms: 2592000000
