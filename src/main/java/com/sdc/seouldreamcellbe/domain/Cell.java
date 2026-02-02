@@ -49,7 +49,7 @@ public class Cell extends BaseTimeEntity {
     @Formula("(SELECT count(*) FROM members m WHERE m.cell_id = id AND m.gender = 'FEMALE' AND m.active = true)")
     private int femaleCount;
 
-    @OneToMany(mappedBy = "cell", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "cell", cascade = CascadeType.ALL)
     @JsonManagedReference
     @Builder.Default
     private List<Member> members = new ArrayList<>();

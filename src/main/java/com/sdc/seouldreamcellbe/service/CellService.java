@@ -332,8 +332,40 @@ public class CellService {
                 .orElseThrow(() -> new NotFoundException("부리더로 지정된 멤버를 찾을 수 없습니다. ID: " + request.viceLeaderId()));
             cell.setViceLeader(viceLeader);
             viceLeader.setCell(cell); // Also update the member's cell
-        } else {
+        } else if (request.viceLeaderId() == null && cell.getViceLeader() != null) {
             cell.setViceLeader(null); // Clear the vice-leader
+        }
+
+        // --- Update Cell Members ---
+        if (request.memberIds() != null) {
+            Set<Long> newMemberIds = new HashSet<>(request.memberIds());
+            
+            // 1. Remove members who are no longer in the cell
+            List<Member> currentMembers = new ArrayList<>(cell.getMembers());
+            for (Member member : currentMembers) {
+                if (!newMemberIds.contains(member.getId())) {
+                    member.setCell(null);
+                    // If the member was a leader/vice-leader, clear those too
+                    if (cell.getLeader() != null && cell.getLeader().getId().equals(member.getId())) {
+                        cell.setLeader(null);
+                        if (member.getRole() == Role.CELL_LEADER) member.setRole(Role.MEMBER);
+                    }
+                    if (cell.getViceLeader() != null && cell.getViceLeader().getId().equals(member.getId())) {
+                        cell.setViceLeader(null);
+                    }
+                }
+            }
+
+            // 2. Add/Update members in the cell
+            if (!newMemberIds.isEmpty()) {
+                List<Member> membersToAssign = memberRepository.findAllById(newMemberIds);
+                for (Member member : membersToAssign) {
+                    if (member.getCell() == null || !member.getCell().getId().equals(cellId)) {
+                        member.setCell(cell);
+                        member.setCellAssignmentDate(LocalDate.now());
+                    }
+                }
+            }
         }
 
         // Refetch to ensure the DTO response is consistent with the changes
