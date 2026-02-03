@@ -211,7 +211,7 @@ public class DashboardService {
 
 
         // 3. Distribution (with gap filling)
-        List<Object[]> distributionRaw = memberRepository.findBirthYearDistribution();
+        List<Object[]> distributionRaw = memberRepository.findBirthYearDistributionWithRole();
         if (distributionRaw.isEmpty()) {
             return new DashboardDto.DemographicsDto(totalCellCount, totalMemberCount, cellMemberCount, previousSemesterCount, executiveCount, cellLeaderCount, countDaehak, countCheongnyeon, Collections.emptyList());
         }
@@ -223,7 +223,8 @@ public class DashboardService {
         for (Object[] row : distributionRaw) {
             Integer year = (Integer) row[0];
             com.sdc.seouldreamcellbe.domain.common.Gender gender = (com.sdc.seouldreamcellbe.domain.common.Gender) row[1];
-            Long count = (Long) row[2];
+            com.sdc.seouldreamcellbe.domain.common.Role role = (com.sdc.seouldreamcellbe.domain.common.Role) row[2];
+            Long count = (Long) row[3];
 
             minYear = Math.min(minYear, year);
             maxYear = Math.max(maxYear, year);
@@ -231,19 +232,29 @@ public class DashboardService {
             distMap.compute(year, (k, v) -> {
                 int male = (v == null) ? 0 : v.maleCount();
                 int female = (v == null) ? 0 : v.femaleCount();
+                int execMale = (v == null) ? 0 : v.executiveMaleCount();
+                int execFemale = (v == null) ? 0 : v.executiveFemaleCount();
+                
                 if (gender == com.sdc.seouldreamcellbe.domain.common.Gender.MALE) {
                     male += count.intValue();
+                    if (role == com.sdc.seouldreamcellbe.domain.common.Role.EXECUTIVE) {
+                        execMale += count.intValue();
+                    }
                 } else if (gender == com.sdc.seouldreamcellbe.domain.common.Gender.FEMALE) {
                     female += count.intValue();
+                    if (role == com.sdc.seouldreamcellbe.domain.common.Role.EXECUTIVE) {
+                        execFemale += count.intValue();
+                    }
                 }
-                return new DashboardDto.DemographicsDistribution(year, male, female);
+                
+                return new DashboardDto.DemographicsDistribution(year, male, female, execMale, execFemale);
             });
         }
         
         // Fill Gaps
         List<DashboardDto.DemographicsDistribution> distribution = new java.util.ArrayList<>();
         for (int y = minYear; y <= maxYear; y++) {
-            distribution.add(distMap.getOrDefault(y, new DashboardDto.DemographicsDistribution(y, 0, 0)));
+            distribution.add(distMap.getOrDefault(y, new DashboardDto.DemographicsDistribution(y, 0, 0, 0, 0)));
         }
 
         return new DashboardDto.DemographicsDto(

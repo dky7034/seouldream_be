@@ -83,6 +83,13 @@ public interface MemberRepository extends JpaRepository<Member, Long>, JpaSpecif
 
     long countByBirthDateBetweenAndActive(java.time.LocalDate start, java.time.LocalDate end, boolean active);
 
+    @Query("SELECT FUNCTION('YEAR', m.birthDate) as year, m.gender, m.role, COUNT(m) " +
+           "FROM Member m " +
+           "WHERE m.active = true AND m.birthDate IS NOT NULL " +
+           "GROUP BY FUNCTION('YEAR', m.birthDate), m.gender, m.role " +
+           "ORDER BY year ASC")
+    List<Object[]> findBirthYearDistributionWithRole();
+
     @Query("SELECT FUNCTION('YEAR', m.birthDate) as year, m.gender, COUNT(m) " +
            "FROM Member m " +
            "WHERE m.active = true AND m.birthDate IS NOT NULL " +

@@ -92,7 +92,9 @@ public record DashboardDto(
     public record DemographicsDistribution(
         Integer birthYear,
         Integer maleCount,
-        Integer femaleCount
+        Integer femaleCount,
+        Integer executiveMaleCount,
+        Integer executiveFemaleCount
     ) {}
 }
 
